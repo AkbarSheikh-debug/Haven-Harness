@@ -38,11 +38,15 @@ export interface Policy {
   readonly maxMode?: Mode;
   readonly budget?: { readonly maxCostUsd?: number; readonly maxTokens?: number };
   /** Who may answer an approval. Others can still ask, but their answer does not count. */
-  readonly approvers?: { readonly users?: readonly string[]; readonly roles?: readonly string[] };
+  readonly approvers?: { readonly users?: readonly string[]; readonly roles?: readonly string[]; /** The person who asked may not approve their own request. */ readonly separate?: boolean };
+  /** Pushes the broker makes for this person: repositories it may push to, and refs that need an approval first. */
+  readonly git?: { readonly repos?: readonly string[]; readonly protect?: readonly string[] };
+  /** Memory gates: whether this person may write team memory, who it may be shared with, whether the agent may dream over or /learn from their sessions, and the most days an entry may live. */
+  readonly memory?: { readonly write?: boolean; readonly share?: readonly ('user' | 'ou' | 'role' | 'org')[]; readonly dream?: boolean; readonly learn?: boolean; readonly maxDays?: number };
 }
 
 const MODE_RANK: Readonly<Record<Mode, number>> = { 'read-only': 0, plan: 1, safe: 2, 'accept-edits': 3, smart: 4, 'dont-ask': 5, yolo: 6 };
-const KEYS = new Set(['version', 'name', 'tools', 'paths', 'mcp', 'models', 'maxMode', 'budget', 'approvers']);
+const KEYS = new Set(['version', 'name', 'tools', 'paths', 'mcp', 'models', 'maxMode', 'budget', 'approvers', 'git', 'memory']);
 const MAX_BYTES = 256 * 1024;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -86,8 +90,22 @@ export function parsePolicy(value: unknown): Policy {
     out.budget = budget as Policy['budget'] & object;
   }
   if (value['approvers'] !== undefined) {
-    const approvers = only(value['approvers'], ['users', 'roles'], 'approvers');
-    out.approvers = { ...(approvers['users'] === undefined ? {} : { users: strings(approvers['users'], 'approvers.users') as string[] }), ...(approvers['roles'] === undefined ? {} : { roles: strings(approvers['roles'], 'approvers.roles') as string[] }) };
+    const approvers = only(value['approvers'], ['users', 'roles', 'separate'], 'approvers');
+    if (approvers['separate'] !== undefined && typeof approvers['separate'] !== 'boolean') throw new PolicyError('approvers.separate must be true or false.');
+    out.approvers = { ...(approvers['users'] === undefined ? {} : { users: strings(approvers['users'], 'approvers.users') as string[] }), ...(approvers['roles'] === undefined ? {} : { roles: strings(approvers['roles'], 'approvers.roles') as string[] }), ...(approvers['separate'] === true ? { separate: true } : {}) };
+  }
+  if (value['memory'] !== undefined) {
+    const memory = only(value['memory'], ['write', 'share', 'dream', 'learn', 'maxDays'], 'memory');
+    for (const flag of ['write', 'dream', 'learn']) if (memory[flag] !== undefined && typeof memory[flag] !== 'boolean') throw new PolicyError(`memory.${flag} must be true or false.`);
+    const share = strings(memory['share'], 'memory.share');
+    if (share !== undefined && !share.every((kind) => ['user', 'ou', 'role', 'org'].includes(kind))) throw new PolicyError('memory.share may list only user, ou, role and org.');
+    const maxDays = memory['maxDays'];
+    if (maxDays !== undefined && (typeof maxDays !== 'number' || !Number.isInteger(maxDays) || maxDays < 1)) throw new PolicyError('memory.maxDays must be a whole number of 1 or more.');
+    out.memory = memory as Policy['memory'] & object;
+  }
+  if (value['git'] !== undefined) {
+    const git = only(value['git'], ['repos', 'protect'], 'git');
+    out.git = { ...(git['repos'] === undefined ? {} : { repos: strings(git['repos'], 'git.repos') as string[] }), ...(git['protect'] === undefined ? {} : { protect: strings(git['protect'], 'git.protect') as string[] }) };
   }
   return out;
 }
@@ -164,6 +182,47 @@ export class PolicySet {
     });
   }
 
+  /** A push target is allowed only if every layer that lists repositories lists it. With no list anywhere, none is. */
+  gitRepoAllowed(repo: string): boolean {
+    return this.layers.some((layer) => layer.git?.repos !== undefined) && this.layers.every((layer) => layer.git?.repos === undefined || hits(layer.git.repos, repo, 'name'));
+  }
+
+  /** A ref any layer protects needs an approval before the broker pushes it. Protection only adds up. */
+  refProtected(ref: string): boolean {
+    return this.layers.some((layer) => hits(layer.git?.protect, ref, 'name'));
+  }
+
+  /** Team memory writes: allowed unless a layer says no. */
+  memoryWriteAllowed(): boolean {
+    return this.layers.every((layer) => layer.memory?.write !== false);
+  }
+
+  /** Who an entry may be shared with: every layer that lists kinds must list this one. Without a list, only the writer. */
+  mayShareTo(kind: 'user' | 'ou' | 'role' | 'org'): boolean {
+    if (kind === 'user') return true;
+    return this.layers.some((layer) => layer.memory?.share !== undefined) && this.layers.every((layer) => layer.memory?.share === undefined || layer.memory.share.includes(kind));
+  }
+
+  /** Dreaming over this person's sessions, and /learn: allowed unless a layer says no. */
+  dreamAllowed(): boolean {
+    return this.layers.every((layer) => layer.memory?.dream !== false);
+  }
+
+  learnAllowed(): boolean {
+    return this.layers.every((layer) => layer.memory?.learn !== false);
+  }
+
+  /** The most days a team memory entry may live, the smallest any layer sets. */
+  memoryMaxDays(): number | undefined {
+    const days = this.layers.flatMap((layer) => (layer.memory?.maxDays === undefined ? [] : [layer.memory.maxDays]));
+    return days.length === 0 ? undefined : Math.min(...days);
+  }
+
+  /** Whether any layer says a requester may not approve their own request. Separation only adds up. */
+  separateApprover(): boolean {
+    return this.layers.some((layer) => layer.approvers?.separate === true);
+  }
+
   /** The deny-only check for gate step 1. It can stop a call and can never allow one. */
   guard(): (call: GateCall) => string | null {
     return (call) => {
@@ -208,14 +267,15 @@ export interface SignedPolicy {
   readonly signature: string;
 }
 
-const canonical = (value: unknown): string => {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (isRecord(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+/** JSON with keys sorted at every level, so one value always has one text to sign. */
+export const canonicalJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (isRecord(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
   return JSON.stringify(value) ?? 'null';
 };
 
 export function signPolicy(policy: Policy, keyId: string, privateKey: KeyObject): SignedPolicy {
-  return { policy, keyId, signature: sign(null, Buffer.from(canonical(policy)), privateKey).toString('base64') };
+  return { policy, keyId, signature: sign(null, Buffer.from(canonicalJson(policy)), privateKey).toString('base64') };
 }
 
 /** Checks a signed bundle against the public keys the operator pinned. An unknown key id, a bad signature or a changed policy all fail. */
@@ -224,7 +284,7 @@ export function verifySignedPolicy(bundle: unknown, pinned: ReadonlyMap<string, 
   const pinnedKey = pinned.get(bundle['keyId']);
   if (pinnedKey === undefined) throw new PolicyError(`The signing key "${bundle['keyId']}" is not one this machine trusts.`);
   const key = typeof pinnedKey === 'string' ? createPublicKey(pinnedKey) : pinnedKey;
-  if (!verify(null, Buffer.from(canonical(bundle['policy'])), key, Buffer.from(bundle['signature'], 'base64'))) throw new PolicyError('The signature does not match the policy, so it was changed or signed by someone else.');
+  if (!verify(null, Buffer.from(canonicalJson(bundle['policy'])), key, Buffer.from(bundle['signature'], 'base64'))) throw new PolicyError('The signature does not match the policy, so it was changed or signed by someone else.');
   return parsePolicy(bundle['policy']);
 }
 

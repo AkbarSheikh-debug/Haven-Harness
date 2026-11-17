@@ -25,7 +25,7 @@ const REQUESTS = ['Remember that the api is v2.', 'fix the build', 'From now on 
 const ORIGINS: Origin[] = ['harness', 'workspace', 'web', 'tool-output', 'mcp'];
 
 /**
- * Exit gate, condition 2, as a property: whatever the sequence of tool calls, taint, people present or
+ * As a property: whatever the sequence of tool calls, taint, people present or
  * absent, yeses, noes and tampered cards, every entry that ever lands in MEMORY.md or USER.md is one the
  * user asked for in that very turn (clean session) or one a person said yes to after seeing it.
  */

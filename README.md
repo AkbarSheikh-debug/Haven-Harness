@@ -5,9 +5,11 @@
 Haven Harness (`hn`) is a terminal coding agent that reads, writes and runs code for you, delegates to a crew of
 sub-agents, remembers what matters between sessions, and drives whole fleets of repositories. Every action it takes
 passes a permission gate. Every command it runs can be put in a sandbox that is **verified from outside**, not trusted
-because it says so. Every piece of text it did not get from you is tracked as untrusted, all the way to the gate.
+because it says so. Every piece of text it did not get from you is tracked as untrusted, all the way to the gate. For
+teams, a self-hosted **broker** holds the model keys and credentials, so the rules bind even a person who edits the
+client.
 
-> **Status: early, and moving fast.** The core is built and heavily tested (1,300+ tests, 63 named attacks with a
+> **Status: early, and moving fast.** The core is built and heavily tested (1,400+ tests, 75 named attacks with a
 > test each), but interfaces will still change. Windows is the most-tested platform today. Expect rough edges, and
 > please report them.
 
@@ -24,6 +26,7 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 | **Untrusted text stays untrusted** | Web pages, MCP servers, repository files and child agents are tagged by origin. A session that has read untrusted text loses the right to act unattended until a person approves. |
 | **Your files come back through review** | A sandboxed agent works on a copy. Its changes come back through an import that holds `.git` internals, CI workflows, hooks and links for a person. |
 | **A tamper-evident log** | Every session is an append-only log with a chained HMAC. A forged or edited log loads read-only, with no approvals. |
+| **Rules that bind, not just advise** | In team mode the laptop holds no model key. A broker checks every model call, server-side tool and memory read against a signed policy, so a modified client gets nothing the policy denies. |
 | **A super agent, not just an agent** | A crew of sub-agents, agent teams with a merge queue, scripted workflows, fleets of repositories, loops and schedules: all under the same gate. |
 
 ---
@@ -54,6 +57,13 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 - Search over past sessions; background review and "dream" sweeps that propose, never write, long-term memory.
 - Learned skills that are linted, scanned and quarantined until a person accepts them.
 
+**Work as a team** ([docs/guide/team-mode.md](docs/guide/team-mode.md))
+- `hn broker`: a self-hosted server that logs people in through your OpenID Connect provider, holds the model keys,
+  git tokens and MCP credentials, and applies a **signed policy tree** (organisation, team, role, person).
+- Model access, budgets, server-side tools (`git push`, MCP), approvals by someone other than the requester, and
+  **team memory** with read gates by person, team and role, all decided on the broker.
+- Every decision in a keyed hash chain, shipped to your SIEM over OTLP; each laptop's audit head is anchored there.
+
 **Meet you where you work**
 - A line REPL, a full-screen **TUI** with an approvals inbox, and headless `hn -p` for scripts and CI.
 - **ACP** for editors that speak the Agent Client Protocol, a JSON-RPC door, and `hn serve`, a loopback web UI hardened
@@ -73,7 +83,8 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 | **Plugins** | Your own backend, spoken to over JSON-RPC. Whatever tier it claims is ignored; it earns one only by passing the canary. | Any |
 | **None** | The default on a fresh install. The gate still applies, and the banner says **NOT SANDBOXED**. | Any |
 
-`yolo` mode (no prompts) is refused unless the session is in a verified sandbox.
+`yolo` mode (no prompts) is refused unless the session is in a verified sandbox. What each tier does **not** cover is
+listed in [docs/guide/security-model.md](docs/guide/security-model.md).
 
 ---
 
@@ -90,6 +101,8 @@ pnpm build:sandbox          # builds native/hn-sandbox (the safe file helper and
 node packages/surfaces/bin/hn.mjs doctor
 ```
 
+Or install a signed release: see [docs/guide/releases.md](docs/guide/releases.md) for how to check it first.
+
 Give it a model:
 
 ```bash
@@ -102,6 +115,10 @@ node packages/surfaces/bin/hn.mjs --model ollama/qwen3:14b
 
 # Any OpenAI-compatible server
 node packages/surfaces/bin/hn.mjs --model <name> --base-url http://localhost:8000/v1
+
+# Through your team's broker (no key on this machine)
+node packages/surfaces/bin/hn.mjs login https://broker.example.com
+node packages/surfaces/bin/hn.mjs --team --model <a model the policy allows you>
 ```
 
 Tip: make an alias, e.g. `alias hn="node /path/to/haven-harness/packages/surfaces/bin/hn.mjs"`.
@@ -122,6 +139,10 @@ hn steer <session> "focus on the parser first"
 hn serve | hn acp | hn rpc           # web UI, editors, JSON-RPC
 hn sandbox show | propose | build    # project image recipes
 hn prepare --image <name>@sha256:... # install dependencies through a locked-down proxy
+hn login <broker> | hn logout        # team mode
+hn approvals [approve|deny <id>]     # requests waiting for you, as an approver
+hn broker broker.json                # run a broker (see docs/guide/team-mode.md)
+hn update <release.tgz>              # install a newer signed release
 ```
 
 **Modes:** `read-only`, `plan`, `safe`, `accept-edits`, `smart`, `dont-ask` (with `--allow`), and `yolo` (verified
@@ -135,23 +156,26 @@ sandbox only). In a session, try `/agents`, `/compact`, `/checkpoints`, `/rewind
 packages/
   core          events, errors and shared types
   session       the append-only, HMAC-chained session log
-  provider      Anthropic, OpenAI-compatible and Ollama adapters, retries, prices
+  provider      Anthropic, OpenAI-compatible, Ollama and broker adapters, retries, prices
   context       budgets, compaction, skills, instructions
   loop          the agent loop: turns, tools, compaction, memory hooks
-  security      the gate, modes, taint, path jail, egress policy, redaction, command parsing
+  security      the gate, modes, taint, path jail, egress policy, redaction, command parsing, policy, OIDC
   operations    the only package that starts processes: sandboxes, git, LSP, browser, proxies
   tools         the tools the model sees
   memory        notes, recall, dream sweeps, learned skills
   delegate      sub-agents, roles, grants and the child channel
   orchestrate   fleets, workflows, teams, ralph, schedules, the supervisor
+  broker        hn broker: login, tokens, governed model calls, server-side tools, approvals, audit, team memory
+  release       signed releases: deterministic archives, the manifest, the SBOM, the update verifier
   surfaces      the CLI and every door: REPL, TUI, -p, RPC, ACP, serve
   config        defaults
-  testkit       fake models and helpers for tests
+  testkit       fake models, a fake identity provider and helpers for tests
   evals         benchmark tasks
 native/hn-sandbox   Rust: safe file access, keychain, and the Windows native box
+scripts/            release build and release-age audit
 ```
 
-See [docs/architecture.md](docs/architecture.md) for how the pieces fit together.
+See [docs/guide/architecture.md](docs/guide/architecture.md) for how the pieces fit together.
 
 ---
 
@@ -159,7 +183,7 @@ See [docs/architecture.md](docs/architecture.md) for how the pieces fit together
 
 ```bash
 pnpm typecheck     # tsc --noEmit
-pnpm test          # the full suite (about 4 to 5 minutes)
+pnpm test          # the full suite (about 5 minutes)
 pnpm test:sandbox  # the Rust helper's tests
 node --disable-proto=throw --test packages/security/test/gate.test.ts   # one file
 ```

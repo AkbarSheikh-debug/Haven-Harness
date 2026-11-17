@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, readFile, rm } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, win32 } from 'node:path';
 import { HnError } from '@hn/core';
@@ -77,12 +77,17 @@ export async function loadBoxConfig(home: string, env: NodeJS.ProcessEnv = proce
 /** The program and arguments that run one shell command in the box. */
 export function shellInvocation(shell: BoxShell, command: string, cwd: string): { program: string; args: string[] } {
   if (shell.kind === 'posix') {
-    const busybox = /^busybox/i.test(basename(shell.path));
+    // The box is Windows, so the shell's path is a Windows path whatever platform builds the call (and tests it).
+    const busybox = /^busybox/i.test(win32.basename(shell.path));
     return { program: shell.path, args: [...(busybox ? ['sh'] : []), '-c', command] };
   }
   // PowerShell takes the script as base64 UTF-16, so no character in it is ever re-quoted on the way in.
   const script = [
     "$ProgressPreference = 'SilentlyContinue'",
+    // Found on a GitHub runner: command auto-loading scans every folder in the module path, and one the box cannot
+    // read (a runner keeps Az modules in C:\Modules) stops it, so even New-PSDrive is "not recognized". The core
+    // modules are imported by name, from PowerShell's own folder, before anything else runs.
+    'Import-Module Microsoft.PowerShell.Management, Microsoft.PowerShell.Utility',
     // PowerShell walks every parent of a folder it is sent to, and the box may not see its parents; a drive rooted
     // at the folder needs none of them. Native programs it starts still get the real folder.
     `New-PSDrive -Name Box -PSProvider FileSystem -Root '${cwd.replaceAll("'", "''")}' | Out-Null`,
@@ -170,7 +175,10 @@ export class NativeBox {
   static async open(options: NativeBoxOptions): Promise<NativeBox> {
     if (process.platform !== 'win32') throw new HnError('NO_NATIVE_BOX', 'The native box in hn-sandbox is Windows only.');
     if (!isAbsolute(options.helper)) throw new HnError('NO_NATIVE_BOX', 'hn-sandbox must be given by absolute path.');
-    const box = new NativeBox(options);
+    // A short (8.3) name in the path, as a runner's TEMP has, makes PowerShell expand it by listing folders above the
+    // box, which the box may not read. The long form needs none of that.
+    await mkdir(options.boxDir, { recursive: true });
+    const box = new NativeBox({ ...options, boxDir: realpathSync.native(options.boxDir) });
     for (const dir of [box.work, box.home, box.tmp]) await mkdir(dir, { recursive: true });
     // Windows points the box's TEMP under LOCALAPPDATA\Packages\<profile>\AC; it must exist inside the box.
     await mkdir(join(box.home, 'Packages', box.name, 'AC', 'Temp'), { recursive: true });
@@ -191,6 +199,8 @@ export class NativeBox {
       ComSpec: win32.join(systemRoot, 'System32', 'cmd.exe'),
       PATHEXT: '.COM;.EXE;.BAT;.CMD;.PS1',
       PATH: [...new Set(path)].join(';'),
+      // Only PowerShell's own modules, which every app may read; never module folders of this machine's users or tools.
+      PSModulePath: win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules'),
       LOCALAPPDATA: this.home,
       APPDATA: this.home,
       USERPROFILE: this.home,

@@ -72,11 +72,11 @@ export class SubagentManager {
   }
 
   /** What one child may spend: the per-child cap, cut to what the family has left after every active reservation. */
-  #budgetFor(): number {
+  #budgetFor(cap: number = this.limits.childTokens): number {
     const spent = tokensOf(familySpend(this.#options.events()));
     const reserved = [...this.#active.values()].reduce((sum, child) => sum + child.reserved, 0) + [...this.#leased.values()].reduce((sum, value) => sum + value, 0);
     const left = this.limits.familyTokens - spent - reserved;
-    const budget = Math.min(this.limits.childTokens, left);
+    const budget = Math.min(this.limits.childTokens, cap, left);
     if (budget < this.limits.minChildTokens) {
       throw new DelegationRefused(`The family token budget is spent (${spent.toLocaleString('en-US')} used, ${reserved.toLocaleString('en-US')} reserved by running children, of ${this.limits.familyTokens.toLocaleString('en-US')}). No child was started.`);
     }
@@ -205,14 +205,14 @@ export class SubagentManager {
   }
 
   /**
-   * A child that holds a lease from its caller's own pool instead of one of the eight slots (workflow and team
-   * children, 11.4 and 11.5): planned, narrowed, granted, budgeted, logged and charged like any other child.
+   * A child that holds a lease from its caller's own pool of `poolSize` instead of one of the eight slots (workflow
+   * and team children). Each takes at most 1/poolSize of the family budget, so a full pool always fits.
    */
-  async leased(task: TaskRequest, request: RunRequest, signal: AbortSignal, childId?: string): Promise<ChildResult> {
+  async leased(task: TaskRequest, request: RunRequest, signal: AbortSignal, childId?: string, poolSize = 1): Promise<ChildResult> {
     if (this.#options.nested || this.limits.maxDepth < 1) throw new DelegationRefused('A child session cannot start another child (the depth limit is 1).');
     const planned = this.plan(task, request);
     const take = (id: string): number => {
-      const budget = this.#budgetFor();
+      const budget = this.#budgetFor(Math.floor(this.limits.familyTokens / Math.max(1, poolSize)));
       this.#leased.set(id, budget);
       return budget;
     };

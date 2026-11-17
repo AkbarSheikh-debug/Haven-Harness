@@ -109,7 +109,20 @@ describe('the canary and the address list', () => {
 });
 
 describe('the verdict', () => {
-  const quiet = 'attempts=12\n';
+  const quiet = 'attempts=12\nprobe-tools nc=yes wget=yes\n';
+
+  it('is not real when the box had no tool to try a connection with, however quiet it was', async () => {
+    const sinks = await NonceSinks.open();
+    try {
+      const noTools = await verifyTier(stand(goodRuntime, 'attempts=12\nprobe-tools nc=no wget=no\n'), sinks, { settleMs: 10 });
+      assert.equal(noTools.real, false);
+      assert.match(noTools.evidence.join('\n'), /no nc/);
+      const silent = await verifyTier(stand(goodRuntime, 'attempts=12\n'), sinks, { settleMs: 10 });
+      assert.equal(silent.real, false, 'a canary that does not say which tools it had proves nothing');
+    } finally {
+      await sinks.close();
+    }
+  });
 
   it('is real only when the config is right, nothing arrived, and the box claims no success', async () => {
     const sinks = await NonceSinks.open();

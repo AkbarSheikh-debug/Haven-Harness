@@ -11,7 +11,7 @@ const FILES = Array.from({ length: 8 }, (_, i) => `module${i}.ts`);
 const readAll = FILES.map((path, i) => ({ id: `r${i}`, name: 'read_file', args: { path } }));
 
 /**
- * Exit gate 5a: "parent window savings measured". The same investigation (find which of eight 6,000-character files
+ * Parent window savings, measured. The same investigation (find which of eight 6,000-character files
  * defines the retry limit) is done inline by the parent and delegated to a scout; the parent's context after the turn
  * is compared, and so is the family's bill, because delegation saves the window, not the bill.
  */

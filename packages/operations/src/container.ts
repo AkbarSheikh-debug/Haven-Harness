@@ -36,6 +36,7 @@ export interface BoxOptions {
   readonly docker: string;
   /** The shell inside the image. Default `sh`, because a minimal image may not have bash. */
   readonly shell?: string;
+  readonly user?: string;
 }
 
 export function assertPinned(image: string): void {
@@ -46,11 +47,18 @@ export function assertPinned(image: string): void {
 
 const SAFE_NAME = /^[A-Za-z0-9_.-]{1,64}$/;
 
+/** Docker on Linux checks the copy's owner, so the box takes this account's ids there (never root); elsewhere, nobody. */
+export function boxUser(platform: string = process.platform, uid = process.getuid?.(), gid = process.getgid?.()): string {
+  return platform === 'linux' && uid !== undefined && gid !== undefined && uid !== 0 ? `${uid}:${gid}` : '65534:65534';
+}
+
 /** The arguments to `docker run`. Pure, so every flag is visible to a test. */
 export function containerRunArgs(options: BoxOptions): string[] {
   assertPinned(options.image);
   if (!SAFE_NAME.test(options.sessionId)) throw new ContainerError('BAD_SESSION_ID', 'The session id is not safe to use in a container name.');
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
+  const user = options.user ?? boxUser();
+  const [uid, gid] = user.split(':');
   return [
     'run',
     '--detach',
@@ -64,7 +72,7 @@ export function containerRunArgs(options: BoxOptions): string[] {
     'none',
     '--read-only',
     '--user',
-    '65534:65534',
+    user,
     '--cap-drop',
     'ALL',
     '--security-opt',
@@ -83,7 +91,7 @@ export function containerRunArgs(options: BoxOptions): string[] {
     '--tmpfs',
     '/tmp:rw,nosuid,size=256m',
     '--tmpfs',
-    '/home/hn:rw,nosuid,size=128m,uid=65534,gid=65534',
+    `/home/hn:rw,nosuid,size=128m,uid=${uid},gid=${gid}`,
     '--env',
     'HOME=/home/hn',
     '--workdir',
@@ -246,7 +254,7 @@ export class ContainerBox {
   /** Runs a command inside the box, with the same result shape the local backend gives. */
   exec(command: string, options: ExecOptions): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
-      const inner = options.cwd.startsWith('/') ? options.cwd : '/work';
+      const inner = /^\/work(\/|$)/.test(options.cwd) ? options.cwd : '/work';
       // Every process this command starts inherits the marker, so only they are stopped if it must be.
       const marker = randomUUID();
       const child = spawn(this.#docker, ['exec', '--interactive', '--env', `HN_EXEC=${marker}`, '--workdir', inner, this.id, this.#shell, '-c', command], {
@@ -307,7 +315,7 @@ export class ContainerBox {
    * but the marker, so a job finds no socket, token or key that leads back to the harness.
    */
   startProcess(command: string, options: StartOptions): RunningProcess {
-    const inner = options.cwd.startsWith('/') ? options.cwd : '/work';
+    const inner = /^\/work(\/|$)/.test(options.cwd) ? options.cwd : '/work';
     const marker = randomUUID();
     const flags = [...(options.input ? ['--interactive'] : []), '--env', `HN_EXEC=${marker}`, '--workdir', inner];
     const child = spawn(this.#docker, ['exec', ...flags, this.id, this.#shell, '-c', command], {

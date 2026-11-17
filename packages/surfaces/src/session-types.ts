@@ -1,3 +1,4 @@
+import type { TeamLogin } from './team.ts';
 import type { ImportPlan, } from '@hn/operations';
 import type { StreamEvent } from '@hn/provider';
 import type { Agent } from '@hn/loop';
@@ -17,6 +18,8 @@ export interface CliOptions {
   readonly mode: string;
   readonly model: string;
   readonly baseUrl?: string;
+  /** Team mode: model calls and policy come from the broker this login names. */
+  readonly team?: TeamLogin;
   readonly window?: number;
   readonly numCtx?: number;
   readonly allow?: readonly string[];
@@ -110,6 +113,8 @@ export interface OpenSession {
   readonly review: (() => Promise<ReviewResult>) | null;
   readonly memoryPaths: import('@hn/memory').MemoryPaths | null;
   readonly dream: ((dryRun: boolean) => Promise<import('@hn/memory').DreamReport>) | null;
+  /** Memory gates: false when the policy keeps /learn away from this person's sessions. */
+  readonly learnAllowed?: boolean;
   runChild(brief: string, signal: AbortSignal): Promise<{ readonly content: string; readonly isError: boolean }>;
   /** `/handoff`: drafts `## Context` and `## Task` from this session with one tool-less call. */
   draftHandoff(signal: AbortSignal): Promise<{ readonly text: string; readonly by: 'model' | 'harness' }>;

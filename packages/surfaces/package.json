@@ -20,7 +20,9 @@
     "@hn/context": "workspace:*",
     "@hn/memory": "workspace:*",
     "@hn/delegate": "workspace:*",
-    "@hn/orchestrate": "workspace:*"
+    "@hn/orchestrate": "workspace:*",
+    "@hn/broker": "workspace:*",
+    "@hn/release": "workspace:*"
   },
   "devDependencies": {
     "@hn/testkit": "workspace:*"

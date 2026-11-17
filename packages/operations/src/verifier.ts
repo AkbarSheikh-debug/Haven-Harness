@@ -98,7 +98,26 @@ export function canaryScript(sinks: Pick<NonceSinks, 'nonce' | 'tcpPort' | 'udpP
     'wait',
     'for s in /var/run/docker.sock /run/docker.sock; do [ -S "$s" ] && echo "docker-socket-present $s"; done',
     'echo "attempts=$attempts"',
+    // Which probe tools exist: without them every probe fails silently and "nothing reached the host" proves nothing.
+    'echo "probe-tools nc=$(command -v nc >/dev/null 2>&1 && echo yes || echo no) wget=$(command -v wget >/dev/null 2>&1 && echo yes || echo no)"',
   ].join('\n');
+}
+
+/**
+ * What the canary's own output says about whether it could test anything. Found on Windows: Git Bash has no `nc`
+ * or `wget`, so every probe failed, nothing reached the listeners, and a host with no boundary passed. A canary that
+ * did not run, or had no tool to try a connection with, is a failed check, never a pass.
+ */
+export function canaryProblems(output: string): string[] {
+  const problems: string[] = [];
+  if (Number(/attempts=(\d+)/.exec(output)?.[1] ?? 0) === 0) problems.push('The canary did not run, so nothing was tested.');
+  const tools = /probe-tools nc=(yes|no) wget=(yes|no)/.exec(output);
+  if (tools === null) problems.push('The canary did not say which probe tools it has, so it may have tested nothing.');
+  else {
+    if (tools[1] !== 'yes') problems.push('The box has no nc, so whether it can open a connection to this machine was not tested.');
+    if (tools[2] !== 'yes') problems.push('The box has no wget, so the metadata address and the engine API were not tried.');
+  }
+  return problems;
 }
 
 /** What the verifier needs from a box. `ContainerBox` satisfies it, and so can a test double. */
@@ -151,7 +170,7 @@ export async function verifyTier(box: Verifiable, sinks: NonceSinks, options: Ve
   const evidence = [...runtime.failures];
   for (const hit of hits) evidence.push(`A ${hit.protocol.toUpperCase()} connection from the box reached this machine (from ${hit.remote}).`);
   for (const line of selfReported) evidence.push(`The box reported: ${line}`);
-  if (attempts === 0) evidence.push('The canary did not run, so nothing was tested.');
+  evidence.push(...canaryProblems(output));
 
   return { real: evidence.length === 0, evidence, hits, selfReported, runtime, attempts, unchecked: UNCHECKED };
 }

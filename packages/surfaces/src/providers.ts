@@ -10,6 +10,7 @@ import {
   type ModelProvider,
 } from '@hn/provider';
 import type { CliOptions } from './session.ts';
+import { teamProvider } from './team.ts';
 
 /**
  * Where summaries come from: on Anthropic the cheap tier first, then the main model; elsewhere the main
@@ -22,7 +23,12 @@ export function summaryRoutes(provider: ModelProvider, model: string, caps: Mode
   return [{ source: 'summary', provider, model: DEFAULTS.summaryModel, window: cheap.window }, main];
 }
 
-export function chooseProvider(options: CliOptions, keys: KeyStore): { provider: ModelProvider; model: string; caps: ModelCaps } {
+export function chooseProvider(options: CliOptions, keys: KeyStore, session = 'none'): { provider: ModelProvider; model: string; caps: ModelCaps } {
+  // Team mode: the laptop holds no model key; every call goes to the broker, which decides and holds the key.
+  if (options.team !== undefined) {
+    const caps = options.window === undefined ? resolveCaps(options.model) : resolveCaps(options.model, { window: options.window });
+    return { model: options.model, caps, provider: teamProvider(options.team, session) };
+  }
   const local = options.model.startsWith('ollama/');
   if (!local && options.baseUrl === undefined) {
     return {

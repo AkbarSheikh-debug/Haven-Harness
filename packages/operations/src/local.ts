@@ -31,9 +31,14 @@ export function findBash(env: NodeJS.ProcessEnv = process.env): string {
   return found;
 }
 
-/** Git's tools live beside its bash. Windows spells the variable `Path`, so the real key is kept. */
+/**
+ * Git's tools live beside its bash on Windows, so that folder goes first there; Windows spells the variable `Path`, so
+ * the real key is kept. Elsewhere bash lives in a system folder already on PATH, and putting it first would hide the
+ * person's own tools (a newer node, ~/.local/bin) behind the system's.
+ */
 function shellEnv(bash: string, extra: Readonly<Record<string, string>> = {}): NodeJS.ProcessEnv {
   const name = Object.keys(process.env).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH';
+  if (process.platform !== 'win32') return { ...process.env, ...extra };
   return { ...process.env, ...extra, [name]: `${dirname(bash)}${delimiter}${process.env[name] ?? ''}` };
 }
 

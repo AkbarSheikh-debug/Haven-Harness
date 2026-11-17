@@ -13,3 +13,5 @@ export * from './threat.ts';
 export * from './trust.ts';
 export * from './rules.ts';
 export * from './syntax.ts';
+export * from './oidc.ts';
+export * from './policy-tree.ts';

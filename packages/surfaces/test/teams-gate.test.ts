@@ -75,7 +75,8 @@ describe('agent teams through the real stack', () => {
         const merges = session.agent.events.filter((event) => event.type === 'team/merge' && event.data['kind'] !== 'start');
         const merged = merges.filter((event) => event.data['kind'] === 'merged').map((event) => String(event.data['member']));
         const conflicts = merges.filter((event) => event.data['kind'] === 'conflict').map((event) => String(event.data['member']));
-        assert.equal(merged.length, 13, merges.map((event) => `${String(event.data['kind'])}:${String(event.data['member'])}`).join(' '));
+        const failedMembers = session.agent.events.filter((event) => event.type === 'team/member' && event.data['state'] === 'failed').map((event) => `${String(event.data['name'])} failed: ${String(event.data['why'])}`);
+        assert.equal(merged.length, 13, [merges.map((event) => `${String(event.data['kind'])}:${String(event.data['member'])}`).join(' '), ...failedMembers].join('\n'));
         assert.equal(conflicts.length, 3);
         assert.ok(conflicts.every(shared), 'only the members that edited the same line conflicted');
         // Without lost work: every member's change is on main, or held at the ref its conflict task names.

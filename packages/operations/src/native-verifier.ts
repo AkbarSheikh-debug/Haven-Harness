@@ -97,14 +97,19 @@ Promise.all(tries).then(() => setTimeout(() => { say('attempts=' + attempts); pr
  * that kills them when Node exits, which would hide whether the box did.)
  */
 export function survivorScript(beatFile: string): string {
-  const loop = `$f='${beatFile.replaceAll("'", "''")}'; $t=[DateTime]::Now; while (([DateTime]::Now - $t).TotalSeconds -lt 20) { [IO.File]::AppendAllText($f, 'b'); Start-Sleep -Milliseconds 100 }`;
+  // Plain .NET calls only, no cmdlets: found on a GitHub runner, cmdlets may not load in the box at all (a module
+  // folder the box cannot read stops auto-loading), and then no background process ran and nothing was tested.
+  const loop = `$f='${beatFile.replaceAll("'", "''")}'; $t=[DateTime]::Now; while (([DateTime]::Now - $t).TotalSeconds -lt 20) { [IO.File]::AppendAllText($f, 'b'); [Threading.Thread]::Sleep(100) }`;
   const encoded = Buffer.from(loop, 'utf16le').toString('base64');
   return [
-    "$ProgressPreference = 'SilentlyContinue'",
-    `$ps = Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'`,
-    `Start-Process -FilePath $ps -ArgumentList '-NoProfile','-NonInteractive','-EncodedCommand','${encoded}' -NoNewWindow -WorkingDirectory '${dirname(beatFile).replaceAll("'", "''")}'`,
+    `$ps = [IO.Path]::Combine($env:SystemRoot, 'System32\\WindowsPowerShell\\v1.0\\powershell.exe')`,
+    `$si = [Diagnostics.ProcessStartInfo]::new($ps, '-NoProfile -NonInteractive -EncodedCommand ${encoded}')`,
+    // A plain CreateProcess with no job of its own, sharing the console, as Start-Process -NoNewWindow does.
+    '$si.UseShellExecute = $false',
+    `$si.WorkingDirectory = '${dirname(beatFile).replaceAll("'", "''")}'`,
+    '[void][Diagnostics.Process]::Start($si)',
     '$t = [DateTime]::Now',
-    `while (-not [IO.File]::Exists('${beatFile.replaceAll("'", "''")}') -and ([DateTime]::Now - $t).TotalSeconds -lt 15) { Start-Sleep -Milliseconds 100 }`,
+    `while (-not [IO.File]::Exists('${beatFile.replaceAll("'", "''")}') -and ([DateTime]::Now - $t).TotalSeconds -lt 15) { [Threading.Thread]::Sleep(100) }`,
   ].join('\n');
 }
 

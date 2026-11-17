@@ -10,7 +10,7 @@ describe('launcher', () => {
   it('starts hn with __proto__ disabled', () => {
     const run = spawnSync(process.execPath, [launcher, '--version'], { encoding: 'utf8' });
     assert.equal(run.status, 0);
-    assert.equal(run.stdout, 'hn 0.0.0\n');
+    assert.equal(run.stdout, 'hn from source\n');
   });
 
   it('refuses to run without the launcher', () => {

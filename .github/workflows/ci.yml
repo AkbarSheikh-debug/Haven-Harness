@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # A test that hangs fails the job in an hour, never the runner's six-hour limit.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # The native helper (safe file access, keychain, Windows box). Rust is preinstalled on GitHub runners.
+      - run: pnpm build:sandbox
+      # hn never pulls an image itself; the container tests use this one, so the runner pulls it first.
+      - if: runner.os == 'Linux'
+        run: docker pull alpine:3.20
+      - run: pnpm typecheck
+      - run: pnpm test

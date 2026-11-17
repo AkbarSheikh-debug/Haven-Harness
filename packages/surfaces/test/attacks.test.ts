@@ -46,6 +46,10 @@ const NAMED_ATTACKS = [
   'member_cannot_move_main_ref', 'vm_escape_refused_below_tier3', 'steer_ipc_rejected_without_token', 'tainted_schedule_requires_human',
   'plugin_backend_cannot_claim_tier', 'image_recipe_edit_requires_human_on_resume', 'devcontainer_initialize_command_never_runs', 'dockerfile_context_excludes_secrets',
   'prepare_cannot_publish_or_reach_engine_api', 'markdown_image_never_fetched', 'serve_rejects_foreign_origin_and_rebinding',
+  'modified_client_cannot_reach_denied_model', 'modified_client_never_receives_broker_key', 'denied_tool_call_stripped_from_reply',
+  'modified_client_cannot_call_denied_server_tool', 'modified_client_cannot_push_protected_ref_without_approval', 'requester_cannot_approve_own_request',
+  'stolen_token_refused_for_other_session_and_after_revoke', 'forged_id_token_refused', 'old_policy_bundle_cannot_be_replayed',
+  'budget_cannot_be_reset_by_client', 'memory_from_other_ou_never_returned', 'cut_audit_tail_caught_by_anchor', 'external_sandbox_untested_is_refused',
 ] as const;
 
 async function testFiles(): Promise<{ name: string; text: string }[]> {

@@ -69,6 +69,11 @@ export interface GitOptions {
   readonly timeoutMs?: number;
   /** Throw on a non-zero exit. Default true. */
   readonly check?: boolean;
+  /**
+   * The broker's push: allow https and send one header (a credential). The header goes in the child's
+   * environment as config, never in its arguments, so it is not visible in a process list.
+   */
+  readonly remote?: { readonly header?: string };
 }
 
 /** Runs git with the hardened settings. Output is capped at 64 MiB. */
@@ -89,6 +94,7 @@ export async function git(args: readonly string[], options: GitOptions): Promise
     '-c', 'tag.gpgSign=false',
     '-c', 'core.autocrlf=false',
     '-c', 'safe.directory=*',
+    ...(options.remote === undefined ? [] : ['-c', 'protocol.https.allow=always']),
   ];
   const env: NodeJS.ProcessEnv = {
     PATH: process.env['PATH'] ?? '',
@@ -104,6 +110,7 @@ export async function git(args: readonly string[], options: GitOptions): Promise
     GIT_COMMITTER_NAME: 'hn',
     GIT_COMMITTER_EMAIL: 'hn@localhost',
     LC_ALL: 'C',
+    ...(options.remote?.header === undefined ? {} : { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.extraHeader', GIT_CONFIG_VALUE_0: options.remote.header }),
   };
   return new Promise((resolvePromise, reject) => {
     const child = spawn(binary, [...hardened, ...args], { cwd: options.cwd, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
