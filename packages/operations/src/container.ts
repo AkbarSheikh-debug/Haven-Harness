@@ -47,10 +47,7 @@ export function assertPinned(image: string): void {
 
 const SAFE_NAME = /^[A-Za-z0-9_.-]{1,64}$/;
 
-/**
- * Docker on a Linux host checks the copy's owner for real, so there the box takes this account's own ids (never root)
- * or it could not write the copy. Docker Desktop shares files without that check, so elsewhere it runs as nobody.
- */
+/** Docker on Linux checks the copy's owner, so the box takes this account's ids there (never root); elsewhere, nobody. */
 export function boxUser(platform: string = process.platform, uid = process.getuid?.(), gid = process.getgid?.()): string {
   return platform === 'linux' && uid !== undefined && gid !== undefined && uid !== 0 ? `${uid}:${gid}` : '65534:65534';
 }
