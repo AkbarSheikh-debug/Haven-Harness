@@ -1,0 +1,1 @@
+{"name": "@hn/memory", "version": "0.0.0", "private": true, "license": "Apache-2.0", "type": "module", "exports": "./src/index.ts", "dependencies": {"@hn/config": "workspace:*", "@hn/core": "workspace:*", "@hn/security": "workspace:*", "@hn/session": "workspace:*", "@hn/context": "workspace:*"}, "devDependencies": {"@hn/testkit": "workspace:*"}}

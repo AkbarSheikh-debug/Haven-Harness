@@ -1,0 +1,28 @@
+{
+  "name": "@hn/surfaces",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "hn": "./bin/hn.mjs"
+  },
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@hn/config": "workspace:*",
+    "@hn/core": "workspace:*",
+    "@hn/loop": "workspace:*",
+    "@hn/operations": "workspace:*",
+    "@hn/provider": "workspace:*",
+    "@hn/security": "workspace:*",
+    "@hn/session": "workspace:*",
+    "@hn/tools": "workspace:*",
+    "@hn/context": "workspace:*",
+    "@hn/memory": "workspace:*",
+    "@hn/delegate": "workspace:*",
+    "@hn/orchestrate": "workspace:*"
+  },
+  "devDependencies": {
+    "@hn/testkit": "workspace:*"
+  }
+}

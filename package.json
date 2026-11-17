@@ -1,0 +1,36 @@
+{
+  "name": "haven-harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Haven Harness: an open-source coding agent with a verified sandbox, a permission gate on every action, and a crew of sub-agents.",
+  "license": "Apache-2.0",
+  "author": "Akbar Sheikh",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AkbarSheikh-debug/haven-harness.git"
+  },
+  "keywords": [
+    "coding-agent",
+    "ai-agent",
+    "llm",
+    "sandbox",
+    "agent-harness",
+    "multi-agent",
+    "cli"
+  ],
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24.14.0"
+  },
+  "scripts": {
+    "test": "node --disable-proto=throw --test \"packages/*/test/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "build:sandbox": "cargo build --release --manifest-path native/hn-sandbox/Cargo.toml",
+    "test:sandbox": "cargo test --manifest-path native/hn-sandbox/Cargo.toml"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}

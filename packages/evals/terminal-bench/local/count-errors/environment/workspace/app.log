@@ -1,0 +1,7 @@
+INFO start
+ERROR disk full
+WARN slow
+error lowercase is not counted
+ERROR timeout
+INFO done
+ERROR retry failed

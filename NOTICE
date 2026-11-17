@@ -1,0 +1,15 @@
+Haven Harness
+Copyright 2026 Akbar Sheikh
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Haven Harness is original code. Its design was informed by studying these
+open-source projects, all MIT licensed at the time of review (2026-11-02):
+
+  Hermes Agent      https://github.com/NousResearch/hermes-agent
+  DeepSeek Harness  https://github.com/deepseek-ai/deepseek-harness
+  Pi                https://github.com/earendil-works/pi
+  OpenClaw          https://github.com/openclaw/openclaw
+
+If code is ever adapted from one of these projects, its copyright notice and
+license text must be added to this file in the same commit.

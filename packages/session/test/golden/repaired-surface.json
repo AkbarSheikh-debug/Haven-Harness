@@ -1,0 +1,84 @@
+[
+  {
+    "seq": 2,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "user/message",
+    "origin": "user",
+    "data": {
+      "text": "fix the bug"
+    }
+  },
+  {
+    "seq": 4,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "assistant/message",
+    "origin": "harness",
+    "data": {
+      "text": "reading",
+      "toolCalls": [
+        {
+          "id": "c1",
+          "name": "read_file",
+          "args": {
+            "path": "a.ts"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "seq": 5,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "tool/result",
+    "origin": "workspace",
+    "data": {
+      "callId": "c1",
+      "content": "source"
+    }
+  },
+  {
+    "seq": 8,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "assistant/message",
+    "origin": "harness",
+    "data": {
+      "text": "editing",
+      "toolCalls": [
+        {
+          "id": "c2",
+          "name": "edit_file",
+          "args": {}
+        },
+        {
+          "id": "c3",
+          "name": "bash",
+          "args": {}
+        }
+      ]
+    }
+  },
+  {
+    "seq": 11,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "tool/result",
+    "origin": "harness",
+    "data": {
+      "callId": "c2",
+      "content": "Its outcome is unknown. The session stopped before this tool reported back. Retry only if the operation is read-only or idempotent.",
+      "isError": true,
+      "outcome": "unknown"
+    }
+  },
+  {
+    "seq": 12,
+    "ts": "2026-11-02T00:00:00.000Z",
+    "type": "tool/result",
+    "origin": "harness",
+    "data": {
+      "callId": "c3",
+      "content": "Its outcome is unknown. The session stopped before this tool reported back. Retry only if the operation is read-only or idempotent.",
+      "isError": true,
+      "outcome": "unknown"
+    }
+  }
+]

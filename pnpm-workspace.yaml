@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+
+# Supply chain rules: new versions wait before use, and install scripts never run.
+# No dependency may run install scripts unless it is listed here.
+onlyBuiltDependencies: []
+# New releases wait 7 days before they can be installed.
+minimumReleaseAge: 10080

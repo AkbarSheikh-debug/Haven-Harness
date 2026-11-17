@@ -1,0 +1,1 @@
+{"name":"@hn/operations","version":"0.0.0","private":true,"license":"Apache-2.0","type":"module","exports":"./src/index.ts","devDependencies":{"@hn/testkit":"workspace:*"},"dependencies":{"@hn/core":"workspace:*","@hn/security":"workspace:*","@vscode/ripgrep":"^1.18.0"}}

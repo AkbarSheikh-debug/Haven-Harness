@@ -1,0 +1,11 @@
+version = "1.0"
+
+[metadata]
+difficulty = "easy"
+category = "file-operations"
+
+[verifier]
+timeout_sec = 120
+
+[agent]
+timeout_sec = 600
