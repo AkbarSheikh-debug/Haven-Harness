@@ -107,9 +107,21 @@ export class HeadlessBrowser {
   static async launch(binary: string, proxy: EgressProxy): Promise<HeadlessBrowser> {
     const profile = await mkdtemp(join(tmpdir(), 'hn-browser-'));
     const child = spawn(binary, browserArgs(proxy.port, profile), { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    try {
+      return await HeadlessBrowser.#connect(child, profile);
+    } catch (error) {
+      // A browser that did not come up is stopped, so no process, pipe or profile outlives the refusal.
+      child.kill();
+      await rm(profile, { recursive: true, force: true, maxRetries: 5 }).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  static async #connect(child: ChildProcess, profile: string): Promise<HeadlessBrowser> {
     const endpoint = await new Promise<string>((resolve, reject) => {
       let text = '';
-      const timer = setTimeout(() => reject(new HnError('BROWSER_START', 'The browser did not start in time.')), 20_000);
+      // A fresh machine's first start (a new profile, a cold disk) can take a while.
+      const timer = setTimeout(() => reject(new HnError('BROWSER_START', 'The browser did not start in time.')), 60_000);
       child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
         text += chunk;
         const match = /DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/\S+)/.exec(text);
