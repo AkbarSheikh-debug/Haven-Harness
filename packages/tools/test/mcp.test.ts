@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { realpathSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
@@ -166,7 +167,8 @@ describe('what a server may and may not do', () => {
           // The server's own scratch folder sits in the OS temp folder, so its path may contain the account name. That path is not a leak.
           const everything = Object.values(report.values).join('\n').toLowerCase().replaceAll(report.home.toLowerCase(), '').replaceAll(report.home.slice(2).toLowerCase(), '');
           for (const real of [homedir(), userInfo().username]) assert.ok(!everything.includes(real.toLowerCase()), `the server was told "${real}"`);
-          assert.equal(report.cwd, report.home, 'the server starts in its own empty folder');
+          // macOS reaches the temp folder through a link (/var is /private/var), so the real paths are compared.
+          assert.equal(realpathSync(report.cwd), realpathSync(report.home), 'the server starts in its own empty folder');
           assert.deepEqual(report.cwdEntries, []);
           assert.notEqual(report.cwd, process.cwd(), 'the server started in the project');
         } finally {

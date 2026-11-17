@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, readFile, rm } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, win32 } from 'node:path';
 import { HnError } from '@hn/core';
@@ -175,7 +175,10 @@ export class NativeBox {
   static async open(options: NativeBoxOptions): Promise<NativeBox> {
     if (process.platform !== 'win32') throw new HnError('NO_NATIVE_BOX', 'The native box in hn-sandbox is Windows only.');
     if (!isAbsolute(options.helper)) throw new HnError('NO_NATIVE_BOX', 'hn-sandbox must be given by absolute path.');
-    const box = new NativeBox(options);
+    // A short (8.3) name in the path, as a runner's TEMP has, makes PowerShell expand it by listing folders above the
+    // box, which the box may not read. The long form needs none of that.
+    await mkdir(options.boxDir, { recursive: true });
+    const box = new NativeBox({ ...options, boxDir: realpathSync.native(options.boxDir) });
     for (const dir of [box.work, box.home, box.tmp]) await mkdir(dir, { recursive: true });
     // Windows points the box's TEMP under LOCALAPPDATA\Packages\<profile>\AC; it must exist inside the box.
     await mkdir(join(box.home, 'Packages', box.name, 'AC', 'Temp'), { recursive: true });
