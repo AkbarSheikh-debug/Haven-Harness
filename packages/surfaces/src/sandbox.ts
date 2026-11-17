@@ -9,6 +9,7 @@ import {
   baselineFromJson,
   baselineToJson,
   canaryScript,
+  canaryProblems,
   createCopy,
   dockerIsUp,
   findDocker,
@@ -257,13 +258,15 @@ export async function assertExternalSandbox(home: string, env: NodeJS.ProcessEnv
   }
   const sinks = await NonceSinks.open();
   try {
-    await bash.exec(`echo ${Buffer.from(canaryScript(sinks, hostAddresses()), 'utf8').toString('base64')} | base64 -d | sh`, {
+    const ran = await bash.exec(`echo ${Buffer.from(canaryScript(sinks, hostAddresses()), 'utf8').toString('base64')} | base64 -d | sh`, {
       cwd,
       timeoutMs: 60_000,
       signal: new AbortController().signal,
     });
     await new Promise((resolve) => setTimeout(resolve, 400));
     if (sinks.hits.length > 0) throw new HnError('EXTERNAL_SANDBOX_LEAKS', `The claimed sandbox is not cut off from this machine: ${sinks.hits.length} connection(s) reached it.`);
+    const untested = canaryProblems(ran.stdout.toString('utf8'));
+    if (untested.length > 0) throw new HnError('EXTERNAL_SANDBOX_UNTESTED', `The claimed sandbox could not be checked, so it is refused: ${untested.join(' ')}`);
   } finally {
     await sinks.close();
   }

@@ -1,0 +1,1 @@
+{"name":"@hn/broker","version":"0.0.0","private":true,"license":"Apache-2.0","type":"module","exports":"./src/index.ts","dependencies":{"@hn/core":"workspace:*","@hn/security":"workspace:*","@hn/provider":"workspace:*","@hn/memory":"workspace:*","@hn/operations":"workspace:*"},"devDependencies":{"@hn/testkit":"workspace:*","@hn/surfaces":"workspace:*"}}

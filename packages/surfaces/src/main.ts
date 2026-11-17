@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { DEFAULTS, resolvePaths } from '@hn/config';
 import { ParentChannel, nonceStore, verifyGrant, type GrantBody } from '@hn/delegate';
 import { createMemberTools } from '@hn/orchestrate';
@@ -22,6 +23,20 @@ import { recipeContext, resolveRecipeImage, runSandboxCommand } from './recipes.
 import { runPrepareCommand } from './prepare-door.ts';
 import { loadTasks, runBench } from './bench.ts';
 import { latestSession, type CliOptions } from './session.ts';
+import { loadTeamLogin, runApprovalsCommand, runLoginCommand } from './team.ts';
+import { loadBrokerConfig, runPolicyTool, startBroker } from '@hn/broker';
+import { runUpdateCommand } from './update-door.ts';
+
+/** The installed release's version, or where this copy runs from. */
+async function releaseVersion(): Promise<string> {
+  const root = process.env['HN_RELEASE_ROOT'];
+  if (root === undefined || root === '') return 'from source';
+  try {
+    return (JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8')) as { version: string }).version;
+  } catch {
+    return 'unknown';
+  }
+}
 
 function protoDisabled(): boolean {
   const probe: Record<string, unknown> = {};
@@ -123,10 +138,12 @@ async function main(): Promise<number> {
       start: { type: 'string' },
       version: { type: 'boolean' },
       oracle: { type: 'boolean' },
+      team: { type: 'boolean' },
+      sig: { type: 'string' },
     },
   });
   if (values.version === true) {
-    process.stdout.write('hn 0.0.0\n');
+    process.stdout.write(`hn ${await releaseVersion()}\n`);
     return 0;
   }
 
@@ -176,6 +193,26 @@ Ctrl+C to stop.
   if (positionals[0] === 'acp' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn acp cannot be started from inside an hn session.');
     await serveAcp(process.stdin, process.stdout, { keys, defaults: { model: values.model ?? DEFAULTS.mainModel, ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }), ...(values.window === undefined ? {} : { window: Number(values.window) }), ...(values['num-ctx'] === undefined ? {} : { numCtx: Number(values['num-ctx']) }) } });
+    return 0;
+  }
+  // Updates: only from a person's command line, never from inside a session or from project files.
+  if (positionals[0] === 'update' && values.print === undefined) {
+    if (nestedCommand) throw new HnError('NESTED_HN', 'hn update cannot be run from inside an hn session.');
+    const paths = resolvePaths();
+    return (await runUpdateCommand({ positionals, ...(values.sig === undefined ? {} : { sig: values.sig }), home: paths.home, logKey: paths.logKey, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
+  }
+  // Team mode: logging in to a broker, and running one. Never from inside a session.
+  if ((positionals[0] === 'login' || positionals[0] === 'logout' || positionals[0] === 'broker' || positionals[0] === 'approvals') && values.print === undefined) {
+    if (nestedCommand) throw new HnError('NESTED_HN', `hn ${positionals[0]} cannot be run from inside an hn session.`);
+    if (positionals[0] === 'approvals') return (await runApprovalsCommand({ positionals, home: resolvePaths().home, out: (text) => process.stdout.write(text) })) ?? 1;
+    if (positionals[0] !== 'broker') return (await runLoginCommand({ positionals, home: resolvePaths().home, out: (text) => process.stdout.write(text) })) ?? 1;
+    const tool = await runPolicyTool(positionals, (text) => process.stdout.write(text));
+    if (tool !== null) return tool;
+    if (positionals[1] === undefined) throw new HnError('BAD_COMMAND', 'hn broker <config.json> | keygen <folder> | sign <tree.json> <key.pem> <key id> <bundle.json>');
+    const broker = await startBroker({ config: await loadBrokerConfig(positionals[1]), keys });
+    process.stdout.write(`hn broker is listening on ${broker.url}. Ctrl+C to stop.\n`);
+    await new Promise<void>((resolve) => process.once('SIGINT', () => resolve()));
+    await broker.close();
     return 0;
   }
   // The JSON-RPC door. A session's tool could otherwise start one to open looser sessions.
@@ -238,6 +275,7 @@ Ctrl+C to stop.
     ...(values['external-sandbox'] === true ? { externalSandbox: true } : {}),
     model: values.model ?? DEFAULTS.mainModel,
     ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }),
+    ...(values.team === true ? { team: await loadTeamLogin(resolvePaths().home) } : {}),
     ...(values.window === undefined ? {} : { window: Number(values.window) }),
     ...(values['num-ctx'] === undefined ? {} : { numCtx: Number(values['num-ctx']) }),
     ...(values.allow === undefined ? {} : { allow: values.allow.split(',') }),

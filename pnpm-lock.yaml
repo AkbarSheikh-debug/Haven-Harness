@@ -15,6 +15,31 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/broker:
+    dependencies:
+      '@hn/core':
+        specifier: workspace:*
+        version: link:../core
+      '@hn/memory':
+        specifier: workspace:*
+        version: link:../memory
+      '@hn/operations':
+        specifier: workspace:*
+        version: link:../operations
+      '@hn/provider':
+        specifier: workspace:*
+        version: link:../provider
+      '@hn/security':
+        specifier: workspace:*
+        version: link:../security
+    devDependencies:
+      '@hn/surfaces':
+        specifier: workspace:*
+        version: link:../surfaces
+      '@hn/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
   packages/config: {}
 
   packages/context:
@@ -173,6 +198,19 @@ importers:
         specifier: workspace:*
         version: link:../testkit
 
+  packages/release:
+    dependencies:
+      '@hn/core':
+        specifier: workspace:*
+        version: link:../core
+      '@hn/security':
+        specifier: workspace:*
+        version: link:../security
+    devDependencies:
+      '@hn/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
   packages/security:
     dependencies:
       '@hn/core':
@@ -198,6 +236,9 @@ importers:
 
   packages/surfaces:
     dependencies:
+      '@hn/broker':
+        specifier: workspace:*
+        version: link:../broker
       '@hn/config':
         specifier: workspace:*
         version: link:../config
@@ -225,6 +266,9 @@ importers:
       '@hn/provider':
         specifier: workspace:*
         version: link:../provider
+      '@hn/release':
+        specifier: workspace:*
+        version: link:../release
       '@hn/security':
         specifier: workspace:*
         version: link:../security

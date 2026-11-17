@@ -2,6 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { toolCallsOf, type SessionEvent } from '@hn/core';
 import type { Operations } from '@hn/operations';
 import type { EgressPolicy } from '@hn/security';
+import { createTeamTools } from './team-tools.ts';
+import type { TeamLogin } from './team.ts';
 import { LspManager, createBrowserTool, createLspTool, createRepoMapTool, lspConfigPath, parseLspConfig, type HarnessExec, type ToolDefinition } from '@hn/tools';
 
 /**
@@ -23,6 +25,8 @@ export interface EdgeToolOptions {
   readonly shell: 'bash' | 'powershell' | 'posix';
   /** The session's notes for the person, such as a config file that was not used. */
   readonly notes?: string[];
+  /** Team mode: the broker's server-side tools for this person. */
+  readonly team?: { readonly login: TeamLogin; readonly session: string };
 }
 
 export interface EdgeTools {
@@ -62,7 +66,7 @@ export async function createEdgeTools(options: EdgeToolOptions): Promise<EdgeToo
   const browser = createBrowserTool({ policy: options.egress, tainted: options.tainted });
   const lsp = servers.length === 0 ? null : new LspManager({ servers, exec: options.exec, ops: options.ops, root: options.root, shell: options.shell });
   return {
-    tools: [createRepoMapTool({ anchors: () => editedFiles(options.events()) }), browser.tool, ...(lsp === null ? [] : [createLspTool(lsp)])],
+    tools: [createRepoMapTool({ anchors: () => editedFiles(options.events()) }), browser.tool, ...(lsp === null ? [] : [createLspTool(lsp)]), ...(options.team === undefined ? [] : await createTeamTools(options.team.login, options.team.session, options.root, notes))],
     afterMutation: async (call) => (lsp === null ? '' : lsp.afterEdit(call.writes)),
     notes,
     close: () => {

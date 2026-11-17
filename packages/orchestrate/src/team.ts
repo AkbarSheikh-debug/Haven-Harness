@@ -65,6 +65,8 @@ export class Team {
   readonly #waiters: (() => void)[] = [];
   readonly #stop = new AbortController();
   #queue: Promise<unknown> = Promise.resolve();
+  /** Completions still committing and fetching a member's work. Their merges are not queued yet, so idle waits for them. */
+  readonly #completing = new Set<Promise<unknown>>();
   #halted: string | null = null;
 
   constructor(options: TeamOptions) {
@@ -135,7 +137,7 @@ export class Team {
   #settle(name: string, ok: boolean, text: string): void {
     this.#running.delete(name);
     this.#ports.delete(name);
-    this.#member(name, ok ? 'stopped' : 'failed');
+    this.#member(name, ok ? 'stopped' : 'failed', ok ? {} : { why: text.slice(0, 500) });
     const before = this.snapshot;
     const after = releaseAll(before, name);
     if (after !== before) this.#options.record('team/task', { by: LEAD, why: `${name} stopped`, snapshot: after as never });
@@ -158,7 +160,15 @@ export class Team {
     if (task === undefined || task.owner !== member || task.status !== 'claimed') return applyAction(this.snapshot, action, member, 'child');
     const base = this.roster.get(member)?.base;
     let harvest: Harvest | null = null;
-    if (base !== undefined) harvest = await this.#options.workspaces.harvest(member, base, `${task.id}: ${task.title} (by ${member})`, `${member}/${task.id}`);
+    if (base !== undefined) {
+      const harvesting = this.#options.workspaces.harvest(member, base, `${task.id}: ${task.title} (by ${member})`, `${member}/${task.id}`);
+      this.#completing.add(harvesting);
+      try {
+        harvest = await harvesting;
+      } finally {
+        this.#completing.delete(harvesting);
+      }
+    }
     const result = this.apply(member, { ...action, changed: harvest?.files ?? [] }, 'child');
     if (result.ok && harvest !== null) {
       this.#member(member, 'active', { base: harvest.commit });
@@ -247,9 +257,12 @@ export class Team {
   async idle(ms: number): Promise<boolean> {
     const deadline = Date.now() + ms;
     for (;;) {
+      // Found on a slow CI runner: a member can finish while the Lead is still harvesting its last task, whose merge
+      // is queued only afterwards, so idle waits for those too, then for the queue, and checks again.
       if (this.#running.size === 0) {
+        await Promise.allSettled([...this.#completing]);
         await this.#queue;
-        if (this.#running.size === 0) return true;
+        if (this.#running.size === 0 && this.#completing.size === 0) return true;
       }
       const left = deadline - Date.now();
       if (left <= 0) return false;

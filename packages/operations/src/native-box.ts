@@ -77,12 +77,17 @@ export async function loadBoxConfig(home: string, env: NodeJS.ProcessEnv = proce
 /** The program and arguments that run one shell command in the box. */
 export function shellInvocation(shell: BoxShell, command: string, cwd: string): { program: string; args: string[] } {
   if (shell.kind === 'posix') {
-    const busybox = /^busybox/i.test(basename(shell.path));
+    // The box is Windows, so the shell's path is a Windows path whatever platform builds the call (and tests it).
+    const busybox = /^busybox/i.test(win32.basename(shell.path));
     return { program: shell.path, args: [...(busybox ? ['sh'] : []), '-c', command] };
   }
   // PowerShell takes the script as base64 UTF-16, so no character in it is ever re-quoted on the way in.
   const script = [
     "$ProgressPreference = 'SilentlyContinue'",
+    // Found on a GitHub runner: command auto-loading scans every folder in the module path, and one the box cannot
+    // read (a runner keeps Az modules in C:\Modules) stops it, so even New-PSDrive is "not recognized". The core
+    // modules are imported by name, from PowerShell's own folder, before anything else runs.
+    'Import-Module Microsoft.PowerShell.Management, Microsoft.PowerShell.Utility',
     // PowerShell walks every parent of a folder it is sent to, and the box may not see its parents; a drive rooted
     // at the folder needs none of them. Native programs it starts still get the real folder.
     `New-PSDrive -Name Box -PSProvider FileSystem -Root '${cwd.replaceAll("'", "''")}' | Out-Null`,
@@ -191,6 +196,8 @@ export class NativeBox {
       ComSpec: win32.join(systemRoot, 'System32', 'cmd.exe'),
       PATHEXT: '.COM;.EXE;.BAT;.CMD;.PS1',
       PATH: [...new Set(path)].join(';'),
+      // Only PowerShell's own modules, which every app may read; never module folders of this machine's users or tools.
+      PSModulePath: win32.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules'),
       LOCALAPPDATA: this.home,
       APPDATA: this.home,
       USERPROFILE: this.home,

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, mkdir, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
 import { resolvePaths } from '@hn/config';
@@ -49,7 +50,13 @@ export async function openSupervisorEndpoint(home: string, supervisor: Superviso
   await mkdir(folder, { recursive: true, mode: 0o700 });
   if (process.platform !== 'win32') await chmod(folder, 0o700);
   const name = randomBytes(12).toString('hex');
-  const path = process.platform === 'win32' ? `\\\\.\\pipe\\hn-supervisor-${name}` : join(folder, `${name.slice(0, 8)}.sock`);
+  let path = process.platform === 'win32' ? `\\\\.\\pipe\\hn-supervisor-${name}` : join(folder, `${name.slice(0, 8)}.sock`);
+  // A Unix socket path holds at most 104 bytes on macOS; a deep home gets a private folder under the system temp.
+  if (process.platform !== 'win32' && Buffer.byteLength(path) > 100) {
+    const short = await mkdtemp(join(tmpdir(), 'hn-'));
+    await chmod(short, 0o700);
+    path = join(short, 's.sock');
+  }
   const token = randomBytes(32).toString('base64url');
   const sockets = new Set<Socket>();
   const dispatch = async (method: string, params: RpcParams): Promise<unknown> => {

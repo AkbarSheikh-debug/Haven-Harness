@@ -152,7 +152,8 @@ describe('hn doctor and a real container engine', async () => {
       } finally {
         await box.stop();
       }
-      assert.equal(byName(await runDoctor({ repoRoot, env }), 'stray boxes').status, 'ok');
+      // Other test files may have boxes of their own running now, so only this one must be gone.
+      assert.doesNotMatch(byName(await runDoctor({ repoRoot, env }), 'stray boxes').detail, new RegExp(`hn-stray${process.pid}(?![0-9])`));
     });
   });
 });

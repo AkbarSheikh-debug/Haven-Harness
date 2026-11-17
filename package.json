@@ -1,6 +1,6 @@
 {
   "name": "haven-harness",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Haven Harness: an open-source coding agent with a verified sandbox, a permission gate on every action, and a crew of sub-agents.",
   "license": "Apache-2.0",
@@ -24,7 +24,7 @@
     "node": ">=24.14.0"
   },
   "scripts": {
-    "test": "node --disable-proto=throw --test \"packages/*/test/*.test.ts\"",
+    "test": "node --disable-proto=throw --test --test-timeout=600000 \"packages/*/test/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "build:sandbox": "cargo build --release --manifest-path native/hn-sandbox/Cargo.toml",
     "test:sandbox": "cargo test --manifest-path native/hn-sandbox/Cargo.toml"

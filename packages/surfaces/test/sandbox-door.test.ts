@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { dockerIsUp, findDocker } from '@hn/operations';
@@ -44,6 +44,21 @@ after(() => {
   server.closeAllConnections();
   server.close();
 });
+
+/**
+ * What a host inside a real outer sandbox looks like to the canary: `nc` and `wget` exist, and no connection gets
+ * out. Two stand-ins on PATH that always fail give exactly that, on any CI runner, without a real outer sandbox.
+ */
+async function cutOffHost(dir: string): Promise<NodeJS.ProcessEnv> {
+  const bin = join(dir, 'cut-off-bin');
+  await mkdir(bin, { recursive: true });
+  for (const tool of ['nc', 'wget']) {
+    await writeFile(join(bin, tool), '#!/bin/sh\nexit 1\n');
+    await chmod(join(bin, tool), 0o755);
+  }
+  const key = Object.keys(process.env).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH';
+  return { [key]: `${bin}${delimiter}${process.env[key] ?? ''}` };
+}
 
 async function hn(cwd: string, args: string[], env: NodeJS.ProcessEnv = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const { port } = server.address() as AddressInfo;
@@ -152,9 +167,28 @@ describe('--external-sandbox', () => {
       await mkdir(join(root, '..', 'hn-home'), { recursive: true });
       await writeFile(join(root, '..', 'hn-home', 'external-sandbox-allowed'), '');
       script = [{ calls: [{ id: 'c1', name: 'read_file', args: { path: 'a.txt' } }] }, { text: 'It says hello.' }];
-      const run = await hn(root, ['-p', 'go', '--json', '--mode', 'dont-ask', '--allow', 'read_file', '--external-sandbox'], { CI: 'true' });
+      const run = await hn(root, ['-p', 'go', '--json', '--mode', 'dont-ask', '--allow', 'read_file', '--external-sandbox'], { CI: 'true', ...(await cutOffHost(dir)) });
       assert.equal(run.code, 0, run.stderr);
       assert.equal(JSON.parse(run.stdout).text, 'It says hello.');
+    });
+  });
+
+  it('attack: external_sandbox_untested_is_refused (a shell with no probe tools proves nothing, so the claim is refused)', async () => {
+    await withTempDir(async (dir) => {
+      const root = await project(dir, { 'a.txt': 'hello\n' });
+      await mkdir(join(root, '..', 'hn-home'), { recursive: true });
+      await writeFile(join(root, '..', 'hn-home', 'external-sandbox-allowed'), '');
+      // Found on Windows: Git Bash has no nc or wget, so every probe failed silently and the claim passed. Here the
+      // tools are shadowed by ones that do not exist as tools at all: a directory first on PATH holding nothing.
+      const empty = join(dir, 'no-tools');
+      await mkdir(join(empty, 'nc'), { recursive: true });
+      await mkdir(join(empty, 'wget'), { recursive: true });
+      const key = Object.keys(process.env).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH';
+      const shellOnly = (process.env[key] ?? '').split(delimiter).filter((entry) => !/nc|wget|netcat|busybox/i.test(entry));
+      const run = await hn(root, ['-p', 'go', '--json', '--mode', 'dont-ask', '--allow', 'read_file', '--external-sandbox'], { CI: 'true', [key]: [empty, ...shellOnly].join(delimiter) });
+      if (run.code === 2 && /EXTERNAL_SANDBOX_LEAKS|not cut off/.test(run.stderr)) return; // this host has nc and is reachable: also refused
+      assert.equal(run.code, 2, run.stderr);
+      assert.match(run.stderr, /could not be checked, so it is refused/);
     });
   });
 });
@@ -296,7 +330,7 @@ describe('a harness started from inside a harness', () => {
       await mkdir(join(root, '..', 'hn-home'), { recursive: true });
       await writeFile(join(root, '..', 'hn-home', 'external-sandbox-allowed'), '');
       script = [{ calls: [{ id: 'c1', name: 'bash', args: { command: 'echo "$HN_PARENT_SESSION" > parent.txt' } }] }, { text: 'done' }];
-      const run = await hn(root, ['-p', 'go', '--json', '--mode', 'dont-ask', '--allow', 'bash', '--external-sandbox'], { CI: 'true', HN_PARENT_SESSION: '' });
+      const run = await hn(root, ['-p', 'go', '--json', '--mode', 'dont-ask', '--allow', 'bash', '--external-sandbox'], { CI: 'true', HN_PARENT_SESSION: '', ...(await cutOffHost(dir)) });
       assert.equal(run.code, 0, run.stderr);
       const sessionId = (JSON.parse(run.stdout) as { sessionId: string }).sessionId;
       assert.equal((await readFile(join(root, 'parent.txt'), 'utf8')).trim(), sessionId, 'a program the tool started was not told which session started it');

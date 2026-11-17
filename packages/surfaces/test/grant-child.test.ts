@@ -96,7 +96,8 @@ describe('a granted child', () => {
       const cwd = await realpath(dir);
       const home = join(cwd, 'home');
       const key = await loadOrCreateLogKey(join(home, 'log.key'));
-      const once = signGrant(grantBody({ child: 'child-2' }), key);
+      // Long-lived, so a slow machine still sees the replay refused as a replay and not as an expired grant.
+      const once = signGrant(grantBody({ child: 'child-2', expires: Date.now() + 1_800_000 }), key);
       assert.equal((await runChild(cwd, home, 'parent-1', handoff(once))).code, 0);
       const cases: [string, string, RegExp][] = [
         [signGrant(grantBody({ mode: 'yolo' }), Buffer.alloc(32, 7)), 'parent-1', /signature does not verify/],

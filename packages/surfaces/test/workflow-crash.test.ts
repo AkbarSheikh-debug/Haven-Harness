@@ -38,9 +38,13 @@ describe('a workflow crash resumes', () => {
       const home = join(root, '.home');
       const sessionId = '0a1b2c3d-0000-4000-8000-000000000001';
       const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== 'HN_PARENT_SESSION'));
-      const parent = spawn(process.execPath, ['--disable-proto=throw', fixture, root, home, model.url, sessionId], { cwd: root, env, stdio: 'ignore' });
+      const parent = spawn(process.execPath, ['--disable-proto=throw', fixture, root, home, model.url, sessionId], { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
+      let parentErr = '';
+      parent.stderr.setEncoding('utf8').on('data', (chunk: string) => (parentErr += chunk));
       // When the fourth agent asks the model, the first three have answered and their journal rows are written: kill the parent.
-      await new Promise<void>((resolve) => {
+      // A parent that dies before that fails the test at once with what it said, instead of waiting out the timeout.
+      await new Promise<void>((resolve, reject) => {
+        parent.once('exit', (code) => onStep !== null && reject(new Error(`The parent exited (${String(code)}) before step 3, after ${live.join(', ') || 'no steps'}:\n${parentErr.slice(-3000)}`)));
         onStep = (step) => {
           if (step !== 'step 3') return;
           onStep = null;

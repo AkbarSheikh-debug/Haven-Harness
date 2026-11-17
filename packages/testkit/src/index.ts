@@ -97,6 +97,8 @@ export interface FakeOpenAI {
   readonly requests: FakeOpenAIRequest[];
   /** When each request arrived (ms since the epoch), in the same order as `requests`. */
   readonly arrivals: number[];
+  /** The headers of each request, in the same order. */
+  readonly headers: Record<string, string | string[] | undefined>[];
   close(): Promise<void>;
 }
 
@@ -118,7 +120,9 @@ export async function startFakeOpenAI(decide: (request: FakeOpenAIRequest) => Fa
   const { createServer } = await import('node:http');
   const requests: FakeOpenAIRequest[] = [];
   const arrivals: number[] = [];
+  const headers: Record<string, string | string[] | undefined>[] = [];
   const server = createServer((request, response) => {
+    headers.push({ ...request.headers });
     const parts: Buffer[] = [];
     request.on('data', (part: Buffer) => parts.push(part));
     request.on('end', () => {
@@ -148,6 +152,7 @@ export async function startFakeOpenAI(decide: (request: FakeOpenAIRequest) => Fa
     url: 'http://127.0.0.1:' + String(address.port),
     requests,
     arrivals,
+    headers,
     close: async () => {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -160,3 +165,4 @@ export function lastContent(request: FakeOpenAIRequest, role: string): string {
   const found = [...request.messages].reverse().find((message) => message.role === role);
   return typeof found?.content === 'string' ? found.content : JSON.stringify(found?.content ?? '');
 }
+export * from './fake-idp.ts';

@@ -1,3 +1,4 @@
+import { sessionPolicy } from './team.ts';
 import { join } from 'node:path';
 import { projectKey, resolvePaths } from '@hn/config';
 import { sanitizeForDisplay } from '@hn/core';
@@ -26,6 +27,11 @@ export function formatDream(report: DreamReport, dryRun: boolean): string {
 export async function runDreamCommand(options: CliOptions & { readonly dryRun: boolean }, keys: KeyStore): Promise<number> {
   const paths = resolvePaths(options.env);
   const memory = memoryPaths(paths.home, options.workdir);
+  // Memory gates: a policy can keep the dreamer away from this person's sessions.
+  if (!(await sessionPolicy(options, paths.home, `dream-${process.pid}`)).policy.dreamAllowed()) {
+    process.stdout.write('The policy does not allow dreaming over these sessions.\n');
+    return 0;
+  }
   const key = await loadOrCreateLogKey(paths.logKey);
   let complete = null;
   if (!options.dryRun) {

@@ -8,8 +8,8 @@ import { KEY_ENV_NAMES, KeyStore, type StreamEvent } from '@hn/provider';
 import { chooseProvider, summaryRoutes } from './providers.ts';
 import { RateLimiter, createExternalTool, limitProvider, loadExternalAgents, rateLimitsFromEnv, type RateGate } from '@hn/delegate';
 export { summaryRoutes } from './providers.ts';
-import { userInfo } from 'node:os';
-import { EgressPolicy, Gate, Jail, MODES, ModeRefusedError, Redactor, TaintTracker, TrustStore, loadBashParser, loadLocalPolicy, type Identity, type Mode, openAuditFile, type Approver, type Audit, type Guardian } from '@hn/security';
+import { anchoredAudit, sessionPolicy } from './team.ts';
+import { EgressPolicy, Gate, Jail, MODES, ModeRefusedError, Redactor, TaintTracker, TrustStore, loadBashParser, type Mode, openAuditFile, type Approver, type Audit, type Guardian } from '@hn/security';
 import { loadOrCreateLogKey } from '@hn/session';
 import { HarnessExec, JobManager, type HarnessDispatcher, type ToolContext, createPlanningTools, type Answer, type Question, connectMcp, createDispatcher, createWebTools, type McpApprover, type McpServer, type McpServerConfig, type SearchBackend } from '@hn/tools';
 import { loadMcpConfig } from './mcp-config.ts';
@@ -85,14 +85,13 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
   for (const name of KEY_ENV_NAMES) if (keys.has(name)) redactor.addSecret(keys.get(name));
 
   // Local policy is advisory: it binds the agent, not the person who owns the machine. Team mode (a broker) is what binds them.
-  const policy = await loadLocalPolicy(paths.home);
-  const identity: Identity = { user: userInfo().username, ou: [], roles: [] };
+  const { policy, identity } = await sessionPolicy(options, paths.home, sessionId); // team mode: the broker's signed tree
   if ((MODES as readonly string[]).includes(options.mode) && !policy.modeAllowed(options.mode as Mode)) {
     throw new ModeRefusedError(options.mode, `the policy allows at most ${policy.maxMode()}.`);
   }
 
   const logKey = await loadOrCreateLogKey(paths.logKey);
-  const auditFile = await openAuditFile(join(paths.home, 'audit', `${sessionId}.jsonl`), logKey);
+  const auditFile = anchoredAudit(await openAuditFile(join(paths.home, 'audit', `${sessionId}.jsonl`), logKey), options.team, sessionId);
   // Without the parser only the string rules apply, and the gate treats every bash call as at least execution.
   const bash = sandbox !== null && sandbox.shell !== 'bash' ? undefined : await loadBashParser().catch(() => undefined); // only bash is parsed as bash
   let agent: Agent | undefined;
@@ -161,7 +160,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
         });
 
   const jobs = ops.processes === undefined ? undefined : new JobManager({ processes: ops.processes, record: (type, data) => agent?.record(type, data) });
-  const chosen = chooseProvider(options, keys);
+  const chosen = chooseProvider(options, keys, sessionId);
   const { model, caps } = chosen;
   // One bucket for the whole family: a root makes it, and its children reach it over their channels.
   const rate: RateGate = options.rateGate ?? new RateLimiter(rateLimitsFromEnv(env));
@@ -275,7 +274,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
           ...(subagents.workspaces === undefined ? {} : { workspaces: subagents.workspaces }),
         })
       : [];
-  const edge = await createEdgeTools({ events: () => agent?.events ?? [], exec: harnessExec, ops, root, home: paths.home, tier, egress, tainted: () => taint.trifecta, shell: sandbox?.shell ?? 'bash', notes });
+  const edge = await createEdgeTools({ events: () => agent?.events ?? [], exec: harnessExec, ops, root, home: paths.home, tier, egress, tainted: () => taint.trifecta, shell: sandbox?.shell ?? 'bash', notes, ...(options.team === undefined ? {} : { team: { login: options.team, session: sessionId } }) });
   const dispatcher = createDispatcher({
     gate,
     ops,
@@ -372,7 +371,8 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
     notes,
     instructions: instructions.access,
     memoryPaths: memory?.paths ?? null,
-    dream: memory === null ? null : (dryRun) => memory.dream(dryRun),
+    dream: memory === null || !policy.dreamAllowed() ? null : (dryRun) => memory.dream(dryRun),
+    learnAllowed: policy.learnAllowed(),
     review: memory === null ? null : createReviewer({ parentPath: logPath, childrenDir: childrenFolder(paths.sessions, options.workdir, sessionId), key: logKey, lockDir: paths.locks, config, paths: memory.paths, worst: () => taint.worst, redact: (row) => redactor.redact(keys.redact(row)) }),
     subagents: subagents.manager,
     team: lead?.team ?? null,

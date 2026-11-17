@@ -12,6 +12,8 @@ export interface MemoryDoorSession {
   readonly review: (() => Promise<ReviewResult>) | null;
   readonly dream?: ((dryRun: boolean) => Promise<DreamReport>) | null;
   readonly memoryPaths?: MemoryPaths | null;
+  /** Memory gates: false when the policy keeps /learn away from this person's sessions. */
+  readonly learnAllowed?: boolean;
   readonly agent: {
     readonly events: readonly SessionEvent[];
     run?(input: string, options?: { readonly origin?: 'user' | 'harness' }): Promise<{ readonly text: string }>;
@@ -186,6 +188,7 @@ export class MemoryDoor {
 
   /** `/learn`: one harness turn with the house prompt, then every check, then quarantine and a yes or no. */
   async #learn(source: LearnSource): Promise<void> {
+    if (this.#session.learnAllowed === false) return this.#out('The policy does not allow /learn in this session.\n');
     const run = this.#session.agent.run;
     const home = this.#options.home;
     if (run === undefined || home === undefined || this.#options.ask === undefined) return this.#out('/learn needs an interactive session.\n');

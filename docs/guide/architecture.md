@@ -65,9 +65,11 @@ plus one Rust crate for what Node cannot do safely on its own.
 | `memory` | Notes and long-term memory files, recall, session search, background review, dream sweeps, learned skills. |
 | `delegate` | Sub-agents: roles, grants that only narrow, the child channel, approvals relayed to the parent's person. |
 | `orchestrate` | Fleets, workflows and `run_code`, agent teams and their task graph, ralph loops, schedules, the supervisor. |
-| `surfaces` | The `hn` CLI and every door: REPL, TUI, headless, JSON-RPC, ACP, `hn serve`, plus sandbox and recipe commands. |
+| `broker` | `hn broker`: OpenID Connect login, its own short-lived tokens, governed model calls and budgets, server-side tools (`git_push`, MCP over HTTP), approvals, the audit chain and anchors, team memory. See [team-mode.md](team-mode.md). |
+| `release` | Signed releases: a deterministic tar, the ed25519-signed manifest, the CycloneDX SBOM, the update verifier, supply-chain checks. See [releases.md](releases.md). |
+| `surfaces` | The `hn` CLI and every door: REPL, TUI, headless, JSON-RPC, ACP, `hn serve`, plus sandbox, recipe, team and update commands. |
 | `config` | Defaults. |
-| `testkit` | A scripted fake model, a fake OpenAI-compatible server, seeded randomness, temp folders. |
+| `testkit` | A scripted fake model, a fake OpenAI-compatible server, a fake OpenID provider, seeded randomness, temp folders. |
 | `evals` | Benchmark tasks and their runner. |
 | `native/hn-sandbox` | Rust helper: path-safe file access, the OS keychain, and the Windows AppContainer box. |
 

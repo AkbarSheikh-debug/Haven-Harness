@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { rm } from 'node:fs/promises';
+import { lstat, mkdir, rm } from 'node:fs/promises';
 import { connect, createServer, type Server } from 'node:net';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { SessionAlreadyOwnedError } from '@hn/core';
 
 export interface SessionLock {
@@ -20,6 +20,26 @@ function lockAddress({ sessionId, lockDir }: LockOptions): string {
   // Abstract sockets vanish with their process, so Linux has no stale file to clean.
   if (process.platform === 'linux') return `\0hn-lock-${name}`;
   return join(lockDir, `${name}.sock`);
+}
+
+/**
+ * A Unix socket path holds at most 104 bytes on macOS. Found on a macOS runner: a deep temp folder made every lock
+ * fail with EINVAL. A path too long moves to a private per-user folder under /tmp, made 0700 and checked (a real
+ * folder, owned by this user, closed to others) before use, so no other account can plant or read a socket there.
+ * The name already hashes the lock folder and session, so locks stay apart.
+ */
+async function shortEnough(address: string): Promise<string> {
+  if (process.platform === 'win32' || address.startsWith('\0') || Buffer.byteLength(address) <= 100) return address;
+  const uid = process.getuid?.() ?? 0;
+  const dir = `/tmp/hn-locks-${uid}`;
+  await mkdir(dir, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'EEXIST') throw error;
+  });
+  const info = await lstat(dir);
+  if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== uid || (info.mode & 0o077) !== 0) {
+    throw new Error(`${dir} is not a private folder of this user, so no lock socket is made there.`);
+  }
+  return join(dir, basename(address));
 }
 
 function listen(server: Server, address: string): Promise<void> {
@@ -66,7 +86,7 @@ async function bind(address: string, sessionId: string): Promise<Server> {
  * dies, however it dies, so a crash never leaves a session locked.
  */
 export async function acquireSessionLock(options: LockOptions): Promise<SessionLock> {
-  const server = await bind(lockAddress(options), options.sessionId);
+  const server = await bind(await shortEnough(lockAddress(options)), options.sessionId);
   return {
     release: () =>
       new Promise<void>((resolve) => {
