@@ -254,7 +254,7 @@ export class ContainerBox {
   /** Runs a command inside the box, with the same result shape the local backend gives. */
   exec(command: string, options: ExecOptions): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
-      const inner = options.cwd.startsWith('/') ? options.cwd : '/work';
+      const inner = /^\/work(\/|$)/.test(options.cwd) ? options.cwd : '/work';
       // Every process this command starts inherits the marker, so only they are stopped if it must be.
       const marker = randomUUID();
       const child = spawn(this.#docker, ['exec', '--interactive', '--env', `HN_EXEC=${marker}`, '--workdir', inner, this.id, this.#shell, '-c', command], {
@@ -315,7 +315,7 @@ export class ContainerBox {
    * but the marker, so a job finds no socket, token or key that leads back to the harness.
    */
   startProcess(command: string, options: StartOptions): RunningProcess {
-    const inner = options.cwd.startsWith('/') ? options.cwd : '/work';
+    const inner = /^\/work(\/|$)/.test(options.cwd) ? options.cwd : '/work';
     const marker = randomUUID();
     const flags = [...(options.input ? ['--interactive'] : []), '--env', `HN_EXEC=${marker}`, '--workdir', inner];
     const child = spawn(this.#docker, ['exec', ...flags, this.id, this.#shell, '-c', command], {

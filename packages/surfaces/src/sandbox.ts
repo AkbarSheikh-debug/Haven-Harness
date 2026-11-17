@@ -1,5 +1,5 @@
 import { lstat, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join, posix, relative, sep } from 'node:path';
 import { HnError } from '@hn/core';
 import {
   ContainerBox,
@@ -189,9 +189,15 @@ export class ContainerSandbox {
     return {
       exec: (command, options) => {
         if (this.#box === null) throw new HnError(this.#quota === null ? 'BOX_STOPPED' : 'BOX_QUOTA', this.#quota ?? 'The box is stopped. Restart it before running commands.');
-        return this.#box.exec(command, options);
+        return this.#box.exec(command, { ...options, cwd: this.#inner(options.cwd) });
       },
     };
+  }
+
+  /** A folder of the project, as the box sees it: the same place under /work. Anything else is /work itself. */
+  #inner(cwd: string): string {
+    const rel = relative(this.#paths.hostRoot, cwd);
+    return rel === '' || rel.startsWith('..') || isAbsolute(rel) ? '/work' : posix.join('/work', ...rel.split(sep));
   }
 
   /** Jobs and terminals run in the box, never on the host. */
@@ -199,7 +205,7 @@ export class ContainerSandbox {
     return {
       start: (command, options) => {
         if (this.#box === null) throw new HnError('BOX_STOPPED', 'The box is stopped. Restart it before starting a job.');
-        return this.#box.startProcess(command, options);
+        return this.#box.startProcess(command, { ...options, cwd: this.#inner(options.cwd) });
       },
     };
   }
