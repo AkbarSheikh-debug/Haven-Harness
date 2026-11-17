@@ -157,8 +157,8 @@ describe('what a server may and may not do', () => {
         const { server } = await open(dir, { env: { LISTED: 'yes' } });
         try {
           const report = JSON.parse(/\{.*\}/s.exec((await call(server, 'env')).content)?.[0] ?? '{}') as { keys: string[]; values: Record<string, string>; home: string; cwd: string; cwdEntries: string[] };
-          // Windows adds a few system names to any child; the point is that none of them carries the real account or a key.
-          const allowed = new Set(['FAKE_MCP_CONFIG', 'LISTED', 'HOME', 'USERPROFILE', 'TMPDIR', 'TMP', 'TEMP', 'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'HOMEDRIVE', 'HOMEPATH', 'USERNAME', 'USERDOMAIN', 'LOGONSERVER', 'PATH', 'SYSTEMDRIVE']);
+          // Windows (and macOS, with __CF_USER_TEXT_ENCODING) adds a few system names to any child; the point is that none of them carries the real account or a key.
+          const allowed = new Set(['FAKE_MCP_CONFIG', 'LISTED', 'HOME', 'USERPROFILE', 'TMPDIR', 'TMP', 'TEMP', 'SystemRoot', 'SYSTEMROOT', 'windir', 'WINDIR', 'HOMEDRIVE', 'HOMEPATH', 'USERNAME', 'USERDOMAIN', 'LOGONSERVER', 'PATH', 'SYSTEMDRIVE', '__CF_USER_TEXT_ENCODING']);
           assert.deepEqual(report.keys.filter((key) => !allowed.has(key)), [], 'the server inherited something');
           assert.ok(!report.keys.some((key) => /key|token|secret|password/i.test(key)));
           assert.notEqual(report.home, homedir(), 'the server was given the real home folder');

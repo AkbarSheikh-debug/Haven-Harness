@@ -33,7 +33,7 @@ describe('hn bench: Terminal-Bench-format tasks in the Windows box', { skip: win
     const tasks = await loadTasks(tasksRoot);
     const quiet = (): void => undefined;
     const oracle = await runBench({ tasks, mode: 'oracle', args: [], env: process.env, repoRoot, out: quiet });
-    assert.deepEqual(oracle.map((result) => result.passed), [true, true, true, true, true]);
+    assert.deepEqual(oracle.map((result) => result.passed), [true, true, true, true, true], oracle.map((result) => `${result.task}: ${result.note ?? ''}`).join('\n'));
     const none = await runBench({ tasks, mode: 'none', args: [], env: process.env, repoRoot, out: quiet });
     assert.deepEqual(none.map((result) => result.reward), [0, 0, 0, 0, 0]);
   });

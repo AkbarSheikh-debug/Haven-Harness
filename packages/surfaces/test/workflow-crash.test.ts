@@ -15,6 +15,10 @@ describe('a workflow crash resumes', () => {
   let model: FakeOpenAI;
   const live: string[] = [];
   let onStep: ((step: string) => void) | null = null;
+  // Step 3 is not answered until the parent is dead: on a fast machine the parent could otherwise finish the whole
+  // workflow, and exit by itself, before the kill lands.
+  let held: Promise<void> | null = null;
+  let release = (): void => undefined;
   before(async () => {
     model = await startFakeOpenAI(async (request) => {
       const system = String(request.messages[0]?.content ?? '');
@@ -22,6 +26,7 @@ describe('a workflow crash resumes', () => {
         const step = /step \d/.exec(JSON.stringify(request.messages))?.[0] ?? 'step ?';
         live.push(step);
         onStep?.(step);
+        if (step === 'step 3' && held !== null) await held;
         return { text: `answer to ${step}` };
       }
       if (request.messages.at(-1)?.role === 'tool') return { text: 'The workflow is done.' };
@@ -29,6 +34,7 @@ describe('a workflow crash resumes', () => {
     });
   });
   after(async () => {
+    release();
     await model.close();
   });
 
@@ -38,6 +44,7 @@ describe('a workflow crash resumes', () => {
       const home = join(root, '.home');
       const sessionId = '0a1b2c3d-0000-4000-8000-000000000001';
       const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== 'HN_PARENT_SESSION'));
+      held = new Promise<void>((resolve) => (release = resolve));
       const parent = spawn(process.execPath, ['--disable-proto=throw', fixture, root, home, model.url, sessionId], { cwd: root, env, stdio: ['ignore', 'ignore', 'pipe'] });
       let parentErr = '';
       parent.stderr.setEncoding('utf8').on('data', (chunk: string) => (parentErr += chunk));
@@ -45,6 +52,12 @@ describe('a workflow crash resumes', () => {
       // A parent that dies before that fails the test at once with what it said, instead of waiting out the timeout.
       await new Promise<void>((resolve, reject) => {
         parent.once('exit', (code) => onStep !== null && reject(new Error(`The parent exited (${String(code)}) before step 3, after ${live.join(', ') || 'no steps'}:\n${parentErr.slice(-3000)}`)));
+        const stalled = setTimeout(() => {
+          if (onStep === null) return;
+          parent.kill('SIGKILL');
+          reject(new Error(`The parent stalled before step 3, after ${live.join(', ') || 'no steps'} and ${String(model.requests.length)} model requests:\n${parentErr.slice(-3000)}`));
+        }, 200_000);
+        stalled.unref();
         onStep = (step) => {
           if (step !== 'step 3') return;
           onStep = null;
@@ -54,7 +67,10 @@ describe('a workflow crash resumes', () => {
           }, 700);
         };
       });
-      await new Promise((resolve) => parent.once('exit', resolve));
+      await new Promise((resolve) => (parent.exitCode !== null || parent.signalCode !== null ? resolve(null) : parent.once('exit', resolve)));
+      held = null;
+      release();
+      assert.equal(parent.signalCode, 'SIGKILL', 'the parent was killed mid-workflow, not finished');
       const beforeResume = live.length;
       assert.deepEqual(live.slice(0, 4), ['step 0', 'step 1', 'step 2', 'step 3']);
       const was = process.env['HN_PARENT_SESSION'];

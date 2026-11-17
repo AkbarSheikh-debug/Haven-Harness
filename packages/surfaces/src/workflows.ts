@@ -114,13 +114,13 @@ export function createWorkflows(setup: WorkflowSetup): ToolDefinition[] {
         if (writes && setup.workspaces !== undefined && (await setup.workspaces.check()) === null) {
           const childId = randomUUID();
           const workdir = await setup.workspaces.create(childId);
-          result = await setup.manager.leased(task, { start: 'spawn', workdir }, signal, childId);
+          result = await setup.manager.leased(task, { start: 'spawn', workdir }, signal, childId, limits.concurrency);
           const landing = await serially(() => setup.workspaces!.land(childId, `workflow agent: ${prompt.slice(0, 200)}`));
           if (!landing.ok) return { value: null, origin: 'child', child: childId };
         } else if (writes) {
-          result = await serially(() => setup.manager.leased(task, { start: 'spawn' }, signal));
+          result = await serially(() => setup.manager.leased(task, { start: 'spawn' }, signal, undefined, limits.concurrency));
         } else {
-          result = await setup.manager.leased(task, { start: 'spawn' }, signal);
+          result = await setup.manager.leased(task, { start: 'spawn' }, signal, undefined, limits.concurrency);
         }
         const value = result.ok && result.report !== null ? shapeAnswer(result.report.text, opts['schema']) : null;
         return { value, origin: 'child', child: result.childId };

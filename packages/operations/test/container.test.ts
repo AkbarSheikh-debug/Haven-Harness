@@ -8,6 +8,7 @@ import {
   ContainerBox,
   ContainerError,
   assertPinned,
+  boxUser,
   containerRunArgs,
   dockerIsUp,
   findDocker,
@@ -18,6 +19,20 @@ import {
 const DIGEST = `alpine@sha256:${'a'.repeat(64)}`;
 const base: BoxOptions = { image: DIGEST, sessionId: 'abc123', workDir: '/tmp/copy', docker: 'docker' };
 
+describe('the box user', () => {
+  it('is this account on a Linux host, never root, and nobody elsewhere', () => {
+    assert.equal(boxUser('linux', 1001, 121), '1001:121');
+    assert.equal(boxUser('linux', 0, 0), '65534:65534', 'root on the host never makes a root box');
+    assert.equal(boxUser('darwin', 501, 20), '65534:65534');
+    assert.equal(boxUser('win32', undefined, undefined), '65534:65534');
+  });
+  it('is the user the run arguments ask for, and its home belongs to it', () => {
+    const args = containerRunArgs({ ...base, user: '1001:121' });
+    assert.equal(args[args.indexOf('--user') + 1], '1001:121');
+    assert.ok(args.includes('/home/hn:rw,nosuid,size=128m,uid=1001,gid=121'));
+  });
+});
+
 describe('the container run arguments', () => {
   const args = containerRunArgs(base);
   const has = (...flags: string[]): boolean => flags.every((flag, i) => args.includes(flag) && (i === 0 || args.indexOf(flag) > args.indexOf(flags[i - 1] as string) - 1));
@@ -26,7 +41,7 @@ describe('the container run arguments', () => {
   it('asks for every confinement a box needs', () => {
     assert.equal(after('--network'), 'none');
     assert.ok(args.includes('--read-only'));
-    assert.equal(after('--user'), '65534:65534');
+    assert.equal(after('--user'), boxUser());
     assert.equal(after('--cap-drop'), 'ALL');
     assert.equal(after('--security-opt'), 'no-new-privileges');
     assert.equal(after('--pids-limit'), '256');
@@ -192,7 +207,8 @@ describe('a real box', async () => {
   });
 
   it('runs as nobody, with no capabilities and no new privileges', options, async () => {
-    assert.equal(text((await run('id -u')).stdout), '65534');
+    assert.equal(text((await run('id -u')).stdout), boxUser().split(':')[0]);
+    assert.notEqual(text((await run('id -u')).stdout), '0');
     const status = text((await run('cat /proc/self/status')).stdout);
     assert.match(status, /CapEff:\s+0000000000000000/);
     assert.match(status, /NoNewPrivs:\s+1/);

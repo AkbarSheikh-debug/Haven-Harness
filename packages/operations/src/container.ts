@@ -36,6 +36,7 @@ export interface BoxOptions {
   readonly docker: string;
   /** The shell inside the image. Default `sh`, because a minimal image may not have bash. */
   readonly shell?: string;
+  readonly user?: string;
 }
 
 export function assertPinned(image: string): void {
@@ -46,11 +47,21 @@ export function assertPinned(image: string): void {
 
 const SAFE_NAME = /^[A-Za-z0-9_.-]{1,64}$/;
 
+/**
+ * Docker on a Linux host checks the copy's owner for real, so there the box takes this account's own ids (never root)
+ * or it could not write the copy. Docker Desktop shares files without that check, so elsewhere it runs as nobody.
+ */
+export function boxUser(platform: string = process.platform, uid = process.getuid?.(), gid = process.getgid?.()): string {
+  return platform === 'linux' && uid !== undefined && gid !== undefined && uid !== 0 ? `${uid}:${gid}` : '65534:65534';
+}
+
 /** The arguments to `docker run`. Pure, so every flag is visible to a test. */
 export function containerRunArgs(options: BoxOptions): string[] {
   assertPinned(options.image);
   if (!SAFE_NAME.test(options.sessionId)) throw new ContainerError('BAD_SESSION_ID', 'The session id is not safe to use in a container name.');
   const limits = { ...DEFAULT_LIMITS, ...options.limits };
+  const user = options.user ?? boxUser();
+  const [uid, gid] = user.split(':');
   return [
     'run',
     '--detach',
@@ -64,7 +75,7 @@ export function containerRunArgs(options: BoxOptions): string[] {
     'none',
     '--read-only',
     '--user',
-    '65534:65534',
+    user,
     '--cap-drop',
     'ALL',
     '--security-opt',
@@ -83,7 +94,7 @@ export function containerRunArgs(options: BoxOptions): string[] {
     '--tmpfs',
     '/tmp:rw,nosuid,size=256m',
     '--tmpfs',
-    '/home/hn:rw,nosuid,size=128m,uid=65534,gid=65534',
+    `/home/hn:rw,nosuid,size=128m,uid=${uid},gid=${gid}`,
     '--env',
     'HOME=/home/hn',
     '--workdir',

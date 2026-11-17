@@ -176,6 +176,14 @@ describe('the subagent manager', () => {
     assert.equal(tight.specs.length, 0);
   });
 
+  it('gives a child from a pool of n at most 1/n of the family budget, so a full pool always fits', async () => {
+    const { manager: m, specs } = manager({ limits: { familyTokens: 100_000, childTokens: 60_000 } });
+    const signal = new AbortController().signal;
+    await m.leased({ agent: 'scout', task: 'a' }, { start: 'spawn' }, signal, undefined, 4);
+    await m.leased({ agent: 'scout', task: 'b' }, { start: 'spawn' }, signal);
+    assert.deepEqual(specs.map((spec) => spec.tokenBudget), [25_000, 60_000]);
+  });
+
   it('checks options against the model before starting: a fork too big for the child window is refused', async () => {
     const { manager: m, specs } = manager({ contextTokens: () => 60_000 });
     assert.throws(() => m.plan({ agent: 'scout', task: 'x' }, { start: 'fork' }), /more than its model .* can work with/);

@@ -146,7 +146,8 @@ export async function runBench(options: BenchOptions): Promise<BenchResult[]> {
         if (exitCode !== 0) note = sanitizeForDisplay(stderr.trim().split('\n').slice(-3).join(' ')).slice(0, 300);
       }
       scripts.push(join(task.dir, 'tests', 'test.ps1'));
-      const { reward } = await inBox(runner, project, scripts, 120_000);
+      const { reward, output } = await inBox(runner, project, scripts, 120_000);
+      if (reward < 1 && note === undefined && output.trim() !== '') note = sanitizeForDisplay(output.trim().split('\n').slice(-3).join(' ')).slice(0, 300);
       const result: BenchResult = { task: task.name, agent: options.mode, reward, passed: reward >= 1, seconds: Math.round((Date.now() - started) / 100) / 10, exitCode, ...(note === undefined ? {} : { note }) };
       results.push(result);
       options.out(`${result.passed ? 'PASS' : 'FAIL'}  ${task.name}  reward ${reward}  ${result.seconds}s${note === undefined ? '' : `  (${note})`}\n`);

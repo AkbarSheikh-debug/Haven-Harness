@@ -3,7 +3,7 @@ import { projectKey } from '@hn/config';
 import { ORIGINS, type EventType, type Origin, type SessionEvent } from '@hn/core';
 import type { SubagentManager } from '@hn/delegate';
 import { Workspaces } from '@hn/operations';
-import { Team, createLeadTools } from '@hn/orchestrate';
+import { MAX_MEMBERS, Team, createLeadTools } from '@hn/orchestrate';
 import type { ToolDefinition } from '@hn/tools';
 
 /** Where team members' requests and inbox routes go: set once the team exists. */
@@ -35,7 +35,7 @@ export function createTeam(setup: TeamSetup): { readonly team: Team; readonly to
     events: setup.events,
     notify: setup.notify,
     launch: async ({ name, brief, workdir }, signal) => {
-      const result = await setup.manager.leased({ agent: 'worker', task: brief }, { start: 'spawn', workdir, team: name }, signal);
+      const result = await setup.manager.leased({ agent: 'worker', task: brief }, { start: 'spawn', workdir, team: name }, signal, undefined, MAX_MEMBERS);
       return { ok: result.ok, text: result.report?.text ?? result.content };
     },
   });
