@@ -114,7 +114,7 @@ describe('fleet results carry the cost report', () => {
         await writeFile(join(root, 'fleet.json'), JSON.stringify({ model: 'fake', baseUrl: model.url, window: 64_000, jobs: [1, 2].map((n) => ({ name: `job-${n}`, workdir: `repo-${n}`, task: `TASK job-${n}: write done.txt` })) }));
         const options = { keys: KeyStore.capture({}), defaults: { model: 'fake', baseUrl: model.url, window: 64_000 } };
         const first = await runFleetFile(join(root, 'fleet.json'), options);
-        assert.equal(first.counts.done, 2);
+        assert.equal(first.counts.done, 2, JSON.stringify(first.results.map((result) => ({ name: result.name, status: result.status, reason: result.reason, text: result.text.slice(0, 300) }))));
         for (const result of first.results) {
           assert.deepEqual([result.cost?.total.input, result.cost?.total.output], [200, 20], `${result.name} made a write call and a final answer`);
           near(result.cost?.total.dollars, 2 * PER_CALL);
