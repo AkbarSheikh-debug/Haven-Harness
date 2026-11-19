@@ -11,7 +11,7 @@ export interface MemoryWiring {
   readonly paths: MemoryPaths;
   readonly notes: readonly string[];
   readonly tools: readonly ToolDefinition[];
-  /** One dream sweep for this project. A dry run asks no model and writes nothing. */
+  /** One dream sweep for this project (10.8). A dry run asks no model and writes nothing. */
   dream(dryRun: boolean): Promise<DreamReport>;
   /** Releases the search index. */
   close(): void;
@@ -31,7 +31,7 @@ export interface OpenMemoryOptions {
   /** This project's folder of session logs, and the key that verifies them. */
   readonly sessionLogs: string;
   readonly logKey: Buffer;
-  /** `HN_EMBED_MODEL` names an Ollama embedding model; `HN_OLLAMA_URL` where Ollama is. Unset: keyword-only. */
+  /** `HN_EMBED_MODEL` names an Ollama embedding model (decision 1); `HN_OLLAMA_URL` where Ollama is. Unset: keyword-only. */
   readonly env?: NodeJS.ProcessEnv;
   /** Adds a log-only row to the session, such as `memory/search` for a recall. */
   readonly record: (type: EventType, data: Record<string, unknown>) => void;

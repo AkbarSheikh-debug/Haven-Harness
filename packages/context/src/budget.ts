@@ -72,7 +72,7 @@ export function headroomFor(window: number, output: number): number {
   return Math.min(HEADROOM_MAX, Math.max(HEADROOM_MIN, x - HEADROOM_OFFSET));
 }
 
-/** The compaction recipe: WHEN is T, KEEP is K. */
+/** The compaction recipe in section 9.3: WHEN is T, KEEP is K. */
 export function computeBudget(input: BudgetInput): Budget {
   const { window } = input;
   if (!Number.isFinite(window) || window < MIN_WINDOW) throw new WindowTooSmallError(window);

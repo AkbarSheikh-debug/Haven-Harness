@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { assertPinned } from './container.ts';
 
 /**
- * `hn prepare`: installs a project's dependencies without letting the install reach anything. Only the
+ * `hn prepare` (decision 10): installs a project's dependencies without letting the install reach anything. Only the
  * manifests and lockfiles go in (never `.npmrc`, which can hold tokens or point at another registry). Installs run with
  * scripts off, on an `--internal` Docker network whose only other member is the harness's package proxy, which reads
  * from two fixed registries and nothing else. Packages that want install scripts are listed; running them needs a

@@ -29,7 +29,7 @@ function outcome(results: readonly ChildResult[], label: string, signal: AbortSi
 }
 
 /**
- * `subagent`: one tool, all modes. The description is the only reason it gets called, so it says
+ * `subagent`: one tool, all modes (section 11.2). The description is the only reason it gets called, so it says
  * what each mode is for and what it costs.
  */
 export function createSubagentTool(manager: SubagentManager): ToolDefinition {
@@ -92,7 +92,7 @@ export function createSubagentTool(manager: SubagentManager): ToolDefinition {
 
 const childRef = { type: 'string', description: 'The child id from subagent or list_agents (a unique prefix of 8 or more characters is enough).' };
 
-/** `send_message`, `interrupt_agent` and `list_agents`: the durable side of children. */
+/** `send_message`, `interrupt_agent` and `list_agents`: the durable side of children (slide 57). */
 export function createChildTools(manager: SubagentManager): ToolDefinition[] {
   const refused = (error: unknown): ToolResult => {
     if (error instanceof DelegationRefused) return { content: error.message, isError: true, origin: 'harness' };

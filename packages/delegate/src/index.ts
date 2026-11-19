@@ -1,4 +1,5 @@
 export * from './ledger.ts';
+export * from './cost-report.ts';
 export * from './rate-limit.ts';
 export * from './roles.ts';
 export * from './grant.ts';

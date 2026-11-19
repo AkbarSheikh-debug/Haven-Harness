@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { HnError } from '@hn/core';
-import { RateLimiter, rateLimitsFromEnv, type RateGate } from '@hn/delegate';
+import { RateLimiter, costReport, rateLimitsFromEnv, type RateGate } from '@hn/delegate';
 import { spentTokens } from '@hn/loop';
 import { FLEET_JOB_BUDGET, runFleet, validateJobs, type FleetJob, type FleetReport, type FleetResult, type JobRunner } from '@hn/orchestrate';
 import type { KeyStore } from '@hn/provider';
 import { Harness, type HarnessOptions } from './harness.ts';
 import { gatedCheck } from './root-tools.ts';
 
-/** A fleet job gets 80 model calls. */
+/** Section 4: a fleet job gets 80 model calls. */
 export const FLEET_MAX_TURNS = 80;
 const FLEET_MODES = ['dont-ask', 'read-only', 'yolo'] as const;
 
@@ -109,10 +109,10 @@ export function parseVerdict(text: string): { approve: boolean; reason: string }
 }
 
 /**
- * Each job is a `Harness` in its own folder: unattended, so `dont-ask` with the fleet's allowlist, 80 model
+ * Each job is a `Harness` in its own folder (decision 1): unattended, so `dont-ask` with the fleet's allowlist, 80 model
  * calls, a fresh-token budget, and the fleet's one rate bucket. A job's runs, retries and checks share one session; the
  * checks go through that session's `HarnessExec`, so below tier 3 they need a person and an unattended fleet reports
- * them as not run.
+ * them as not run (decision 2).
  */
 export function harnessJobRunner(spec: FleetSpec, options: FleetRunOptions): JobRunner {
   const rate = options.rate ?? new RateLimiter(rateLimitsFromEnv(options.env ?? process.env));
@@ -154,7 +154,7 @@ export function harnessJobRunner(spec: FleetSpec, options: FleetRunOptions): Job
       const session = await harness.open();
       const before = spentTokens(session.agent.events, 'fresh');
       const result = await harness.run(request.prompt, { origin: request.origin });
-      return { end: result.end, text: result.text, tokens: spentTokens(session.agent.events, 'fresh') - before, ...(result.detail === undefined ? {} : { detail: result.detail }) };
+      return { end: result.end, text: result.text, tokens: spentTokens(session.agent.events, 'fresh') - before, cost: costReport(session.agent.events), ...(result.detail === undefined ? {} : { detail: result.detail }) };
     },
     check: async (_job, check, sessionId, signal) => {
       const session = await open.get(sessionId)?.open();

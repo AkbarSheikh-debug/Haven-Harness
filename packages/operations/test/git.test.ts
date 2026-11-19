@@ -44,7 +44,7 @@ describe('hardened git', () => {
   });
 });
 
-describe('private clones for parallel writers', () => {
+describe('private clones for parallel writers (decision 3)', () => {
   it('two writers on different files both land; two on the same line: the second is a conflict, kept at its ref', async () => {
     await withTempDir(async (dir) => {
       const root = await repo(dir);

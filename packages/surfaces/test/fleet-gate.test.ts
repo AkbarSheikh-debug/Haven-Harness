@@ -24,11 +24,11 @@ interface Row {
 }
 
 /**
- * A 25-repo fleet under a rate limit; it dies at job 31 and resumes at 32.
- * 25 repositories, two jobs each, 4 workers, a real HN_RATE_RPM limit and a 429 with Retry-After, a fake
+ * The Phase 6 exit gate (section 13): a 25-repo fleet under a rate limit; it dies at job 31 and resumes at 32.
+ * Decision 8: 25 repositories, two jobs each, 4 workers, a real HN_RATE_RPM limit and a 429 with Retry-After, a fake
  * model; the fleet process is killed with SIGKILL once job 31's result is on disk while jobs 32 to 35 are held.
  */
-describe('a 25-repo fleet under a rate limit dies at job 31 and resumes at 32', () => {
+describe('exit gate: a 25-repo fleet under a rate limit dies at job 31 and resumes at 32', () => {
   let model: FakeOpenAI;
   let holding = true;
   const held: (() => void)[] = [];

@@ -8,8 +8,8 @@ import type { BrokerContext, Route } from './server.ts';
 import { writeAtomic } from './ledger.ts';
 
 /**
- * Team memory with gates. It lives on the broker, so who may read an entry is decided where
- * a client cannot change it. Each entry is the usual memory record (who, when, source session, project, origin, taint,
+ * Team memory with gates (decision 9, slide 37). It lives on the broker, so who may read an entry is decided where
+ * a client cannot change it. Each entry is the Phase 4 record (who, when, source session, project, origin, taint,
  * expires, why) plus the person who wrote it and who may see it: only them, their OU (and every OU below it), a
  * role, or the whole organisation. Policy decides whether a person may write, how widely they may share, and how
  * long an entry may live. An entry learned from untrusted text can be shared with nobody but its writer, an expired

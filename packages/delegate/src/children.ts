@@ -49,7 +49,7 @@ export function finalAnswer(events: readonly SessionEvent[]): { text: string; en
 
 
 /**
- * Repair for a `subagent` call the parent never finished: before writing "outcome unknown",
+ * Repair for a `subagent` call the parent never finished (invariant 7, slide 66): before writing "outcome unknown",
  * read the child's log. What a finished child said comes back as its report; otherwise the result says exactly which
  * child did not finish and how to wake it.
  */

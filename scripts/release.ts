@@ -10,73 +10,16 @@
 // commit are byte-identical.
 
 import { spawnSync } from 'node:child_process';
-import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
+import { createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
-import { MANIFEST_PATH, buildManifest, cycloneDx, manifestBytes, signManifest, writeTar, type SbomComponent, type TarFile } from '../packages/release/src/index.ts';
+import { MANIFEST_PATH, buildManifest, cycloneDx, manifestBytes, signManifest, writeTar, type SbomComponent } from '../packages/release/src/index.ts';
 
-const ROOT = fileURLToPath(new URL('../', import.meta.url));
+import { ROOT, compileWorkspace, vendorClosure } from './build-common.ts';
 const PRODUCT = 'haven-harness';
-/** Workspace packages that are developer tools only and never ship. */
-const DEV_ONLY = new Set(['testkit', 'evals']);
-
-const toPosix = (path: string): string => path.split('\\').join('/');
-
-async function walk(dir: string): Promise<string[]> {
-  const out: string[] = [];
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'node_modules') continue;
-      out.push(...(await walk(full)));
-    } else if (entry.isFile()) out.push(full);
-  }
-  return out.sort();
-}
-
-/** Points a runtime file reference at the compiled file: `new URL('./x.ts', ...)` becomes `./x.js`. */
-const rewriteUrls = (text: string): string => text.replace(/(new URL\(\s*['`]\.{1,2}\/[^'`]*?)\.ts(['`])/g, '$1.js$2');
-
-interface Vendored {
-  readonly name: string;
-  readonly version: string;
-  readonly license?: string;
-  readonly dir: string;
-}
-
-/**
- * Every third-party package the shipped workspace packages need at run time, following pnpm's resolution: a
- * package's own dependencies sit beside it in its store folder, `<store>/<id>/node_modules/<dep>`.
- */
-async function thirdParty(packages: readonly string[]): Promise<Vendored[]> {
-  const found = new Map<string, Vendored>();
-  const visit = async (dir: string): Promise<void> => {
-    const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as { name: string; version: string; license?: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string> };
-    const seen = found.get(pkg.name);
-    if (seen !== undefined) {
-      if (seen.version !== pkg.version) throw new Error(`Two versions of ${pkg.name} are needed (${seen.version} and ${pkg.version}); the flat layout cannot hold both.`);
-      return;
-    }
-    found.set(pkg.name, { name: pkg.name, version: pkg.version, ...(typeof pkg.license === 'string' ? { license: pkg.license } : {}), dir });
-    const store = pkg.name.startsWith('@') ? join(dir, '..', '..') : join(dir, '..');
-    for (const dep of Object.keys(pkg.dependencies ?? {})) await visit(await realpath(join(store, dep)));
-    // Optional dependencies carry the platform's native parts (ripgrep's binary): the one installed here ships.
-    for (const dep of Object.keys(pkg.optionalDependencies ?? {})) {
-      const found = await realpath(join(store, dep)).catch(() => null);
-      if (found !== null) await visit(found);
-    }
-  };
-  for (const name of packages) {
-    const pkg = JSON.parse(await readFile(join(ROOT, 'packages', name, 'package.json'), 'utf8')) as { dependencies?: Record<string, string> };
-    for (const [dep, spec] of Object.entries(pkg.dependencies ?? {})) if (!spec.startsWith('workspace:')) await visit(await realpath(join(ROOT, 'packages', name, 'node_modules', dep)));
-  }
-  return [...found.values()].sort((a, b) => (a.name < b.name ? -1 : 1));
-}
 
 function launcher(): string {
   return [
@@ -97,36 +40,10 @@ function launcher(): string {
 
 async function build(options: { version: string; key: string; keyId: string; out: string; epoch: number }): Promise<string> {
   const created = new Date(options.epoch * 1000).toISOString();
-  const shipped = (await readdir(join(ROOT, 'packages'))).filter((name) => !DEV_ONLY.has(name)).sort();
-  const emit = await mkdtemp(join(tmpdir(), 'hn-release-emit-'));
-  const files: TarFile[] = [];
-  try {
-    const tsc = spawnSync(process.execPath, [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(ROOT, 'tsconfig.json'), '--noEmit', 'false', '--outDir', emit, '--rootDir', join(ROOT, 'packages'), '--rewriteRelativeImportExtensions', '--declaration', 'false', '--sourceMap', 'false', '--newLine', 'lf'], { cwd: ROOT, encoding: 'utf8' });
-    if (tsc.status !== 0) throw new Error(`The TypeScript build failed:\n${tsc.stdout}${tsc.stderr}`);
-    for (const name of shipped) {
-      const pkg = JSON.parse(await readFile(join(ROOT, 'packages', name, 'package.json'), 'utf8')) as { name: string; dependencies?: Record<string, string> };
-      const base = `lib/node_modules/${pkg.name}`;
-      const manifest = { name: pkg.name, version: options.version, private: true, license: 'Apache-2.0', type: 'module', exports: './src/index.js', ...(pkg.dependencies === undefined ? {} : { dependencies: Object.fromEntries(Object.entries(pkg.dependencies).map(([dep, spec]) => [dep, spec.startsWith('workspace:') ? options.version : spec])) }) };
-      files.push({ path: `${base}/package.json`, data: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`) });
-      for (const file of await walk(join(emit, name, 'src'))) files.push({ path: `${base}/src/${toPosix(relative(join(emit, name, 'src'), file))}`, data: Buffer.from(rewriteUrls(await readFile(file, 'utf8'))) });
-      for (const file of await walk(join(ROOT, 'packages', name, 'src'))) {
-        if (file.endsWith('.mjs')) files.push({ path: `${base}/src/${toPosix(relative(join(ROOT, 'packages', name, 'src'), file))}`, data: await readFile(file) });
-      }
-    }
-  } finally {
-    await rm(emit, { recursive: true, force: true });
-  }
-  const components: SbomComponent[] = [];
-  for (const dep of await thirdParty(shipped)) {
-    const hash = createHash('sha256');
-    for (const file of await walk(dep.dir)) {
-      const path = `lib/node_modules/${dep.name}/${toPosix(relative(dep.dir, file))}`;
-      const data = await readFile(file);
-      hash.update(path).update(data);
-      files.push({ path, data, executable: process.platform !== 'win32' && ((await stat(file)).mode & 0o111) !== 0 });
-    }
-    components.push({ name: dep.name, version: dep.version, hash: hash.digest('hex'), ...(dep.license === undefined ? {} : { license: dep.license }) });
-  }
+  const { files, shipped } = await compileWorkspace(options.version, 'lib/node_modules');
+  const vendor = await vendorClosure(shipped, 'lib/node_modules');
+  files.push(...vendor.files);
+  const components: SbomComponent[] = vendor.components;
   const helperName = process.platform === 'win32' ? 'hn-sandbox.exe' : 'hn-sandbox';
   const helper = join(ROOT, 'native', 'hn-sandbox', 'target', 'release', helperName);
   if (!existsSync(helper)) throw new Error(`Build the helper first: pnpm build:sandbox (${helper} is missing).`);

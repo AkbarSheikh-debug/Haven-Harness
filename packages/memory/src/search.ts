@@ -39,7 +39,7 @@ export interface MemoryHit extends Chunk {
   readonly score: number;
 }
 
-/** Turns texts into vectors. Ollama by default; anything that keeps text on the machine fits. */
+/** Turns texts into vectors. Ollama by default (decision 1); anything that keeps text on the machine fits. */
 export interface Embedder {
   readonly model: string;
   embed(texts: readonly string[], signal?: AbortSignal): Promise<Float32Array[]>;
@@ -170,7 +170,7 @@ type Row = Record<string, unknown>;
 const ORIGIN_SET: ReadonlySet<string> = new Set(ORIGINS);
 
 /**
- * Search over this project's memory: USER.md, MEMORY.md and every daily note, chunked. Keyword
+ * Search over this project's memory (10.4): USER.md, MEMORY.md and every daily note, chunked. Keyword
  * search (FTS5, BM25) always; with an embedder, `0.7 vector + 0.3 keyword`. Candidates x4, minimum
  * score 0.35, 30-day decay except for USER.md and MEMORY.md, MMR, at most 6.
  */

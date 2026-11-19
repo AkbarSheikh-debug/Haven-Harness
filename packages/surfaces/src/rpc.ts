@@ -32,7 +32,7 @@ const text = (params: RpcParams, name: string, required = true): string | undefi
   return value;
 };
 
-/** A card as the client sees it: the model's words sanitized, because this door is attacker-reachable. */
+/** A card as the client sees it: the model's words sanitized, because this door is attacker-reachable (invariant 16). */
 const cardForClient = (card: ApprovalCard): Record<string, unknown> => ({
   approvalId: card.approvalId,
   tool: sanitizeForDisplay(card.tool),
@@ -43,7 +43,7 @@ const cardForClient = (card: ApprovalCard): Record<string, unknown> => ({
 });
 
 /**
- * The JSON-RPC door (`hn rpc`): JSON-RPC 2.0, one object per line over stdio. The client that started the
+ * The JSON-RPC door (`hn rpc`, decision 4): JSON-RPC 2.0, one object per line over stdio. The client that started the
  * process owns it, so its prompts are `user`; the supervisor marks what it forwards `ipc`. Approval cards go to the
  * client only when it said it can answer them; otherwise nobody is there and the gate refuses what needs a person.
  */

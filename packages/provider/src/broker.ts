@@ -2,7 +2,7 @@ import { ProviderError, classifyStatus } from './errors.ts';
 import type { ModelProvider, ModelReply, StreamEvent } from './types.ts';
 
 /**
- * The client's end of team mode: the laptop sends its request to the broker and holds no
+ * The client's end of team mode (Phase 8, decision 5): the laptop sends its request to the broker and holds no
  * model key at all. The broker answers with one JSON line per stream event and a last line holding the reply or
  * an error. A refusal (no such model for this person, budget spent, a bad token) is an error the loop shows.
  */

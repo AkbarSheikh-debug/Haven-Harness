@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, isAbsolute, join, resolve } from 'node:path';
 
 /**
- * Git, hardened. The binary is found by absolute path, never in the working directory. It runs with no
+ * Git, hardened (8.8.9). The binary is found by absolute path, never in the working directory. It runs with no
  * system or global config, no hooks, no fsmonitor, no credential prompts and no network protocols, so nothing a
  * repository says can make the harness run a program. Clones the harness owns get their config rewritten before
  * every command, so a filter or merge driver planted in one is never invoked.
@@ -70,7 +70,7 @@ export interface GitOptions {
   /** Throw on a non-zero exit. Default true. */
   readonly check?: boolean;
   /**
-   * The broker's push: allow https and send one header (a credential). The header goes in the child's
+   * The broker's push (Phase 8): allow https and send one header (a credential). The header goes in the child's
    * environment as config, never in its arguments, so it is not visible in a process list.
    */
   readonly remote?: { readonly header?: string };
@@ -167,7 +167,7 @@ export type Landing = { readonly ok: true; readonly files: readonly string[] } |
 const NAME = /^[A-Za-z0-9-]{1,64}$/;
 
 /**
- * Private clones for writers that must not share a checkout. A clone has no remote and its
+ * Private clones for writers that must not share a checkout (decision 3 of Phase 5). A clone has no remote and its
  * own refs, so nothing in it can move the project's branches; work comes back only by the project fetching it into a
  * namespace the harness chose.
  */
@@ -247,7 +247,7 @@ export class Workspaces {
   }
 
   /**
-   * One step of the Lead's merge queue: merges `ref` into the project's current branch. The branch must still be
+   * One step of the Lead's merge queue (11.5): merges `ref` into the project's current branch. The branch must still be
    * at `expected` (compare-and-set), so nothing that moved it outside the queue goes unnoticed. The merge itself runs in
    * a scratch clone whose config the harness wrote, so no hook, filter or merge driver runs; the result comes back by a
    * fast-forward. A conflict is aborted and reported; nothing is forced.

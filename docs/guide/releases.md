@@ -1,6 +1,11 @@
 # Releases: checking and updating
 
-Each release is one archive per platform (for example `haven-harness-0.8.0-win32-x64.tgz`) with two files beside it:
+Most people install with `npm install -g haven-harness` ([installing](install.md)). Besides the npm package, each release
+has six `hn-sandbox` helpers with a signed manifest (`hn-sandbox-manifest-<version>.json` and its `.sig.json`),
+`SHA256SUMS`, and a build provenance attestation from the workflow that made them. The rest of this page is about the
+per-platform archives, which are what `hn update` installs.
+
+Each release archive is one per platform (for example `haven-harness-0.8.0-win32-x64.tgz`) with two files beside it:
 
 | File | What it is |
 |---|---|
@@ -45,4 +50,17 @@ SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) node --disable-proto=throw scripts/
   --version 0.9.0 --key ./release-keys/release-key.pem --key-id <id> --out ./dist
 ```
 
-Sigstore provenance is not produced yet; it needs a CI build identity.
+The npm package and the six sandbox helpers are built by the release workflow (`.github/workflows/release.yml`) from a
+`vX.Y.Z` tag, or by hand:
+
+```bash
+# the helpers: build on each platform (or cross-build), name them hn-sandbox-<version>-<platform>[.exe], put them in ./helpers
+cargo build --release --locked --manifest-path native/hn-sandbox/Cargo.toml
+node --disable-proto=throw scripts/sandbox-manifest.ts --version 0.9.0 --binaries ./helpers --key ./release-keys/release-key.pem --key-id <id>
+node --disable-proto=throw scripts/pack-npm.ts --version 0.9.0 --key ./release-keys/release-key.pem --key-id <id> --out ./dist
+```
+
+The workflow signs only when the release key is given to it as a secret of a protected `release` environment, and it
+creates a **draft** release: nothing is published until its owner publishes it. Without the key it builds the six
+helpers and says nothing was signed. The workflow's build provenance is a GitHub attestation; publishing the npm
+package with `npm publish --provenance` from CI adds npm's own provenance statement.

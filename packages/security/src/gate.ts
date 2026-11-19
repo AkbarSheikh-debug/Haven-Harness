@@ -319,7 +319,7 @@ export class Gate {
   }
 
   /**
-   * A child's approval card. Children never ask anyone themselves: the card comes here and is
+   * A child's approval card (decision 2 of Phase 5). Children never ask anyone themselves: the card comes here and is
    * shown to this session's person in the same one-at-a-time queue and under the same prompt limit, labelled with the
    * child. The guardian never decides it, a yes counts once (no grant crosses from parent to child or back), and with
    * nobody here, or in a mode that never asks, the answer is no.

@@ -1,7 +1,7 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-/** At most 100 instances, a heartbeat every 30 s. */
+/** Section 12: at most 100 instances, a heartbeat every 30 s. */
 export const MAX_INSTANCES = 100;
 export const HEARTBEAT_MS = 30_000;
 export const HEARTBEAT_TIMEOUT_MS = 10_000;
@@ -52,7 +52,7 @@ export interface SupervisorOptions {
 }
 
 /**
- * The supervisor (experimental): many instances, each an `hn rpc` process holding one session,
+ * The supervisor (slide 54, experimental, decision 7): many instances, each an `hn rpc` process holding one session,
  * driven through the RPC door. Ops `new_session`, `prompt`, `fork`, `clone`, `get_state`, `stop`. What it forwards is
  * `ipc`, never `user`: the supervisor is another process, not a person at a door. Local only.
  */

@@ -58,7 +58,7 @@ export class Redactor {
     for (const shape of SHAPES) out = out.replace(shape, REDACTED);
     return out.replace(ASSIGNMENT, (_whole, name: string, value: string) => {
       // An unquoted value after a colon is a JSON number or word: the replacement is quoted and any closing brackets
-      // are kept, so a redacted log row is still valid JSON (found by testing: "tokenBudget":3000000 broke a log).
+      // are kept, so a redacted log row is still valid JSON (found in Phase 5: "tokenBudget":3000000 broke a log).
       if (/:\s*$/.test(name)) {
         const head = /^[[{]*/.exec(value)?.[0] ?? '';
         const tail = /[\]}]+.*$/.exec(value.slice(head.length))?.[0] ?? '';

@@ -5,7 +5,7 @@ import { summaryRoutes } from '../src/session.ts';
 
 const provider = (route: string): ModelProvider => ({ route, complete: () => Promise.reject(new Error('unused')) });
 
-describe('summary routes', () => {
+describe('summary routes (Phase 3 decision 1)', () => {
   it('tries the cheap tier first on Anthropic, then the main model', () => {
     const routes = summaryRoutes(provider('anthropic'), 'claude-opus-5-5', resolveCaps('claude-opus-5-5'));
     assert.deepEqual(

@@ -6,7 +6,7 @@ const KEY_BYTES = 32;
 
 /**
  * The per-install key that signs session logs. A same-user process can read this
- * file, so forged-log protection is weaker here than with the key in the OS keychain.
+ * file, so forged-log protection is weaker here than with the keychain in Phase 2.
  */
 export async function loadOrCreateLogKey(path: string): Promise<Buffer> {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });

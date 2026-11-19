@@ -10,6 +10,9 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 |---|---|
 | `agents_md_symlink_to_secret_not_loaded` | [packages/operations/test/safe-files.test.ts](../../packages/operations/test/safe-files.test.ts) |
 | `approval_invalid_after_script_edit` | [packages/security/test/approval.test.ts](../../packages/security/test/approval.test.ts) |
+| `benchmark_container_needs_operator_allow_entry` | [packages/surfaces/test/outer-sandbox.test.ts](../../packages/surfaces/test/outer-sandbox.test.ts) |
+| `benchmark_container_never_yolo` | [packages/surfaces/test/outer-sandbox.test.ts](../../packages/surfaces/test/outer-sandbox.test.ts) |
+| `benchmark_container_refused_on_workstation` | [packages/surfaces/test/outer-sandbox.test.ts](../../packages/surfaces/test/outer-sandbox.test.ts) |
 | `bidi_and_overwrite_approval_escaped` | [packages/security/test/approval.test.ts](../../packages/security/test/approval.test.ts) |
 | `box_job_cannot_use_tool_socket` | [packages/tools/test/jobs.test.ts](../../packages/tools/test/jobs.test.ts) |
 | `budget_cannot_be_reset_by_client` | [packages/broker/test/modified-client.test.ts](../../packages/broker/test/modified-client.test.ts) |

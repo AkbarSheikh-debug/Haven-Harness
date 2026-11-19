@@ -3,7 +3,7 @@ import { availableParallelism } from 'node:os';
 import type { EventType, Origin, SessionEvent } from '@hn/core';
 import { join as joinOrigins } from '@hn/security';
 
-/** A workflow's limits. */
+/** Section 11.4's limits. */
 export interface WorkflowLimits {
   readonly concurrency: number;
   readonly maxAgents: number;
@@ -45,7 +45,7 @@ export function scriptHash(script: string, args: unknown): string {
   return createHash('sha256').update(script).update('\0').update(JSON.stringify(args ?? null)).digest('hex');
 }
 
-/** The journal key: call path, prompt or tool, schema, model and inputs. */
+/** The journal key (11.4): call path, prompt or tool, schema, model and inputs. */
 export function callKey(path: string, what: string, details: unknown): string {
   return createHash('sha256').update(JSON.stringify([path, what, details])).digest('hex').slice(0, 32);
 }
@@ -107,7 +107,7 @@ function sameToken(given: unknown, token: string): boolean {
 }
 
 /**
- * Runs one workflow. The script runs in a fresh runner process; this side holds the token, treats every
+ * Runs one workflow (section 11.4). The script runs in a fresh runner process; this side holds the token, treats every
  * message as hostile, journals every finished sub-call in the calling session, and replays journaled calls when an
  * unfinished run of the same script is found, so a crash costs only the calls that had not finished.
  */

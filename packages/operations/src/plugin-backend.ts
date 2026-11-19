@@ -8,7 +8,7 @@ import { hostAddresses, type NonceSinks, type SinkHit } from './verifier.ts';
 import type { ExecOptions, ExecResult } from './types.ts';
 
 /**
- * Backend plugins. A plugin is a program the user names in `~/.hn/backends.json`, run out of
+ * Backend plugins (decision 5, section 8.8.7). A plugin is a program the user names in `~/.hn/backends.json`, run out of
  * process, spoken to over JSON-RPC on its standard streams, and given no keys. Whatever tier it claims is ignored: a
  * plugin earns tier 3, marked asserted (so never yolo), only when the canary run through it reaches nothing here.
  * Otherwise it is tier 2, which is no boundary.

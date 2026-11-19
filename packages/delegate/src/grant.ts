@@ -7,7 +7,7 @@ import { MODES, type Mode } from '@hn/security';
 export const GRANT_TTL_MS = 2 * 60_000;
 
 /**
- * Tools a child never gets, whatever its role says: memory (children get none), delegation (depth 1), asking the
+ * Tools a child never gets, whatever its role says: memory (the plan blocks it), delegation (depth 1), asking the
  * user (children cannot), scheduling, and the script runners that could start children of their own.
  */
 export const BLOCKED_IN_CHILDREN: ReadonlySet<string> = new Set([
@@ -154,7 +154,7 @@ export interface Narrowed {
 }
 
 /**
- * The child's mode: never more than the parent's, never more than the role's ceiling. Plan becomes
+ * The child's mode: never more than the parent's, never more than the role's ceiling (invariant 4). Plan becomes
  * read-only, because leaving plan mode needs a person and a child cannot ask. `smart` becomes `safe`, because the
  * guardian stays with the parent. Under `dont-ask` a child never asks either, so it keeps the parent's allowlist (cut
  * to the role's tools) or, for a role that would ask, `safe`, whose asks reach a parent that answers no one. Below

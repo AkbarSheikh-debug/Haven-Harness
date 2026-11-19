@@ -18,12 +18,12 @@ export interface HarnessOptions extends Omit<CliOptions, 'mode' | 'model'> {
   readonly model?: string;
   /**
    * `false` runs on a throwaway home removed at close: no log, memory, approvals, trust or audit outlive the
-   * instance (the website case). Default `true`.
+   * instance (the website case, slide 15). Default `true`.
    */
   readonly persist?: boolean;
   /** The model keys. Default: taken out of this process's environment once, so nothing spawned later inherits them. */
   readonly keys?: KeyStore;
-  /** Open the control channel, so `hn steer` and `hn stop` reach this session from another process. */
+  /** Open the control channel, so `hn steer` and `hn stop` reach this session from another process (section 11.6). */
   readonly control?: boolean;
 }
 
@@ -54,7 +54,7 @@ let processKeys: KeyStore | null = null;
 const defaultKeys = (): KeyStore => (processKeys ??= KeyStore.capture());
 
 /**
- * One harness, behind every door: the `-p` door, JSON-RPC, the fleet, schedules and ralph each hold
+ * One harness, behind every door (section 12): the `-p` door, JSON-RPC, the fleet, schedules and ralph each hold
  * one. It decides nothing; `openSession` plugs the modules into their sockets. Two instances share nothing: each has
  * its own log, gate, jail, taint and backend, and its tools see only its own session id.
  */

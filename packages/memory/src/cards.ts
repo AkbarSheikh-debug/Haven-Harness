@@ -5,7 +5,7 @@ import type { MemoryPaths } from './paths.ts';
 import { pendingProposals, proposalHash, readAnswers, readProposals, recordAnswer, type Proposal } from './proposals.ts';
 import { writeMemory } from './write-path.ts';
 
-/** At most three cards per morning. */
+/** At most three cards per morning (10.8). */
 export const MAX_CARDS = 3;
 
 /**

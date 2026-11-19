@@ -3,12 +3,13 @@ import { join, posix } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { projectKey, resolvePaths } from '@hn/config';
 import { HnError, sanitizeForDisplay } from '@hn/core';
-import { analyzeDockerfile, assertPinned, buildArgs, buildContext, createSafeFiles, dockerBuild, findDocker, findHelper, imageId, type SafeFiles } from '@hn/operations';
+import { resolveHelper } from './helper.ts';
+import { analyzeDockerfile, assertPinned, buildArgs, buildContext, createSafeFiles, dockerBuild, findDocker, imageId, type SafeFiles } from '@hn/operations';
 import { TrustStore, hashContent } from '@hn/security';
 import { loadOrCreateLogKey } from '@hn/session';
 
 /**
- * Project image recipes. A recipe is attacker-controlled code, so it is proposed, never used
+ * Project image recipes (decision 9, section 8.1). A recipe is attacker-controlled code, so it is proposed, never used
  * by itself: `hn sandbox propose` shows all of it and a person pins its hash; any change, on resume too, needs a person
  * again. Devcontainer lifecycle commands and the other host-reaching keys are ignored and listed, never run. A build
  * copies only the files the Dockerfile names into a context the harness makes, and runs with no network.
@@ -206,7 +207,7 @@ export async function buildRecipe(context: RecipeContext, docker: string, out: (
 /** What the door and `main` need: the safe file helper and the trust store for this user. */
 export async function recipeContext(root: string, env: NodeJS.ProcessEnv = process.env, repoRoot?: string): Promise<RecipeContext> {
   const paths = resolvePaths(env);
-  const helper = await findHelper({ env, ...(repoRoot === undefined ? {} : { repoRoot }), home: paths.home });
+  const helper = await resolveHelper({ env, ...(repoRoot === undefined ? {} : { repoRoot }), home: paths.home });
   if (helper === null) throw new HnError('SANDBOX_HELPER_MISSING', 'hn-sandbox is not built. Build it with: pnpm build:sandbox');
   const trust = new TrustStore(join(paths.home, 'trust'), await loadOrCreateLogKey(paths.logKey), { keepText: true });
   await trust.load();

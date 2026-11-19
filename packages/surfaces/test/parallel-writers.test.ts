@@ -8,7 +8,7 @@ import type { ApprovalCard } from '@hn/security';
 import { openSession } from '@hn/surfaces';
 import { lastContent, startFakeOpenAI, withTempDir, type FakeOpenAI } from '@hn/testkit';
 
-describe('parallel writers through the real stack', () => {
+describe('parallel writers through the real stack (decision 3)', () => {
   let model: FakeOpenAI;
   before(async () => {
     model = await startFakeOpenAI((request) => {

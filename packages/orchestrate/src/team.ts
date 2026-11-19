@@ -53,7 +53,7 @@ function queueHead(events: readonly SessionEvent[]): string | null {
 }
 
 /**
- * An agent team: the root session is the Lead. Members are children, each in its own clone with its own refs;
+ * An agent team (11.5): the root session is the Lead. Members are children, each in its own clone with its own refs;
  * the graph and the roster live in the Lead's log; messages arrive at a member's step boundaries carrying their origin;
  * the Lead owns the merge queue, and only the queue moves the project's branch.
  */
@@ -133,7 +133,7 @@ export class Team {
     return `Started ${name} in its own clone. It reports through the task graph and messages; wait_agent waits for news.`;
   }
 
-  /** A member's run ended: its claims go back to open, and the Lead hears how it went. */
+  /** A member's run ended: its claims go back to open (11.5), and the Lead hears how it went. */
   #settle(name: string, ok: boolean, text: string): void {
     this.#running.delete(name);
     this.#ports.delete(name);

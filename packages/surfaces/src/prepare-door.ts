@@ -6,7 +6,7 @@ import { HnError, sanitizeForDisplay } from '@hn/core';
 import { copyManifests, detectManager, dockerIsUp, findDocker, preparePlan, runDockerStep, scriptPackages } from '@hn/operations';
 
 /**
- * `hn prepare [--dry-run] --image name@sha256:<digest>`. The image must hold Node and the project's package
+ * `hn prepare [--dry-run] --image name@sha256:<digest>` (decision 10). The image must hold Node and the project's package
  * manager; it runs both the package proxy and the install. The installed tree stays under `~/.hn/prepared`, outside the
  * project, as box output does. Install scripts run only after a person at a terminal saw the list and typed yes.
  */

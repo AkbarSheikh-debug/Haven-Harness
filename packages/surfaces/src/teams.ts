@@ -23,7 +23,7 @@ export interface TeamSetup {
 }
 
 /**
- * The Lead's side of an agent team (experimental). Members are workers started through the manager's leased
+ * The Lead's side of an agent team (11.5, experimental). Members are workers started through the manager's leased
  * path (they do not use the eight subagent slots), each in a private clone under `refs/hn/team`; the hub routes their
  * channel requests and inbox to this team.
  */

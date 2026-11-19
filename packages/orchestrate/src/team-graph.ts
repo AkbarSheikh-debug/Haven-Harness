@@ -18,7 +18,7 @@ export interface TeamTask {
   /** Bumped by every change to this task: the compare-and-set token. */
   readonly revision: number;
   readonly createdBy: string;
-  /** The worst origin of everything that wrote this task, so a reader joins the writer's taint. */
+  /** The worst origin of everything that wrote this task, so a reader joins the writer's taint (11.5). */
   readonly origin: Origin;
   /** Where the work for this task lives, when a branch holds it (a merge conflict). */
   readonly ref?: string;
@@ -72,7 +72,7 @@ function inScope(path: string, scope: readonly string[]): boolean {
 }
 
 /**
- * One write to the graph. Every action names the task revision it last saw, and a stale one is refused, so two
+ * One write to the graph (11.5). Every action names the task revision it last saw, and a stale one is refused, so two
  * members cannot both win a claim. Only the owner completes or releases; only the Lead reassigns, reopens or deletes;
  * a claim needs every dependency done; the dependency graph is revalidated whole for cycles; at most 256 tasks.
  */
@@ -135,7 +135,7 @@ export function applyAction(snapshot: TeamSnapshot, action: TeamAction, actor: s
   }
 }
 
-/** Every task a member owns goes back to open: what happens when a member dies. */
+/** Every task a member owns goes back to open: what happens when a member dies (11.5). */
 export function releaseAll(snapshot: TeamSnapshot, member: string): TeamSnapshot {
   if (!snapshot.tasks.some((task) => task.owner === member && task.status === 'claimed')) return snapshot;
   return {

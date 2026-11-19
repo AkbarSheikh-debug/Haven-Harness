@@ -17,7 +17,7 @@ export interface ChildAgentOptions {
   readonly signal: AbortSignal;
   /**
    * Opens Node's IPC pipe to the child and hands each message here with a way to reply: the private channel for
-   * approvals and rate limits. Every message is hostile until the handler says otherwise.
+   * approvals and rate limits (Phase 5 decision 2). Every message is hostile until the handler says otherwise.
    */
   readonly onMessage?: (message: unknown, reply: (message: unknown) => void) => void;
   /** Told the child's process id once it starts, so a durable child can be found again. */
@@ -50,7 +50,7 @@ function killChild(child: ChildProcess): void {
 }
 
 /**
- * Runs a child harness as its own process: its own window and its own log, and only its report
+ * Runs a child harness as its own process (slide 47): its own window and its own log, and only its report
  * crosses back. No shell is involved, so a brief is an argument, never shell text.
  */
 export function runChildAgent(options: ChildAgentOptions): Promise<ChildAgentResult> {
@@ -60,7 +60,7 @@ export function runChildAgent(options: ChildAgentOptions): Promise<ChildAgentRes
       env: options.env,
       stdio: options.onMessage === undefined ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'ipc'],
       serialization: 'json',
-      // Detached everywhere, so a child outlives a parent that crashes; on Windows a non-detached child sits
+      // Detached everywhere, so a child outlives a parent that crashes (slide 57); on Windows a non-detached child sits
       // in a job object that dies with the parent. Stopping a child still kills its whole tree.
       detached: true,
       windowsHide: true,

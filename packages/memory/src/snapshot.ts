@@ -8,7 +8,7 @@ import type { MemoryEntry } from './record.ts';
 /** Daily notes are tail-capped: the newest lines that fit in this many characters. */
 export const DAILY_TAIL_CHARS = 4_000;
 
-/** Origins whose lines never load on their own, whatever else is true of them. */
+/** Origins whose lines never load on their own, whatever else is true of them (8.4). */
 const NEVER_AUTOLOAD: ReadonlySet<Origin> = new Set(['web', 'mcp', 'child', 'event', 'ipc']);
 /** Text a person wrote or picked, or the harness itself. Everything else loads only as quoted data. */
 const PLAIN: ReadonlySet<Origin> = new Set(['user', 'human-selected', 'harness']);
@@ -69,7 +69,7 @@ function render(lines: readonly Line[], separator: string): string {
 }
 
 /**
- * The frozen memory row for the start of a session: USER.md and MEMORY.md with their fill
+ * The frozen memory row for the start of a session (10.2): USER.md and MEMORY.md with their fill
  * levels, then today's and yesterday's notes, newest kept. Every entry passes the strict scan on
  * load; a blocked one shows as `[BLOCKED #id]` so it can still be removed. Nothing here changes
  * during the session: writes reach disk and the next session.

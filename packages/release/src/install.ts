@@ -6,7 +6,7 @@ import { ReleaseError, compareVersions, verifyRelease, type ReleaseManifest } fr
 import { safeArchivePath } from './tar.ts';
 
 /**
- * The update verifier. A release is installed only when its signature checks against a key the
+ * The update verifier (decision 12). A release is installed only when its signature checks against a key the
  * installed copy pins, every file matches the manifest, it is for this platform, and its version is newer than the
  * highest version ever installed here. That highest version is kept with an HMAC under a key only this machine
  * holds, so a downgrade cannot be forced by deleting or editing the record. Nothing here is started by a project:

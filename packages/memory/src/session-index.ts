@@ -67,7 +67,7 @@ function shownOrigin(row: Row): Origin {
 }
 
 /**
- * Search over past sessions of this project: SQLite FTS5 rebuilt from the logs, never a
+ * Search over past sessions of this project (10.1): SQLite FTS5 rebuilt from the logs, never a
  * second truth. Every hit is a real row with its session, seq and origin. No model is involved.
  */
 export class SessionIndex {

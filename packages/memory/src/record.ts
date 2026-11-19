@@ -10,8 +10,8 @@ export const WRITERS = ['user', 'agent', 'review', 'dream'] as const;
 export type Writer = (typeof WRITERS)[number];
 
 /**
- * One entry, with every field an audit needs, so nothing needs a
- * migration later. `origin` is the origin of the text's source, kept across disk, so a fact learned
+ * One entry, with every field slide 37 will need from day one, so enterprise gates need no
+ * migration. `origin` is the origin of the text's source, kept across disk, so a fact learned
  * from a web page stays `web`. `taint` is whether the writing session held untrusted text.
  */
 export interface MemoryEntry {
@@ -26,7 +26,7 @@ export interface MemoryEntry {
   readonly taint: 'clean' | 'untrusted';
   readonly expires: string | null;
   readonly why: string;
-  /** Who allowed a long-term write: `user-request` or the name of the person who said yes. */
+  /** Who allowed a long-term write: `user-request` (decision 3) or the name of the person who said yes. */
   readonly approvedBy: string | null;
 }
 

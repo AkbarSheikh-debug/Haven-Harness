@@ -19,7 +19,7 @@ const line = (hit: SessionHit, text: string): string =>
   `session ${hit.session} seq ${hit.seq} (${hit.ts.slice(0, 16)}, ${hit.type}${hit.tool === null ? '' : ` ${hit.tool}`}, ${hit.origin}): ${sanitizeForDisplay(text).replace(/\s+/g, ' ')}`;
 
 /**
- * `session_search` and `session_trace`. Keyword search over this project's past session logs,
+ * `session_search` and `session_trace` (10.1). Keyword search over this project's past session logs,
  * no model involved. Results are real rows; the result's origin is the worst origin it shows, so a
  * page read in an old session still counts as the web when it comes back.
  */

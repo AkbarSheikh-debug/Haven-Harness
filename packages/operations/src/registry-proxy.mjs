@@ -1,4 +1,4 @@
-// The package proxy for `hn prepare`. Plain JavaScript with no imports beyond Node, because it is mounted
+// The package proxy for `hn prepare` (decision 10). Plain JavaScript with no imports beyond Node, because it is mounted
 // read-only into the proxy container and run there as it is.
 //
 // It is a reverse proxy, not a forward one: the installer is told to use http://<proxy>/npm/ as its registry, and the

@@ -2,11 +2,13 @@ import { appendFile, cp, mkdir, mkdtemp, readFile, readdir, rm, stat } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HnError, sanitizeForDisplay } from '@hn/core';
-import { NativeBox, NonceSinks, createCopy, findHelper, loadBoxConfig, startHnProcess, verifyNativeTier } from '@hn/operations';
+import { NativeBox, NonceSinks, createCopy, loadBoxConfig, startHnProcess, verifyNativeTier } from '@hn/operations';
+import { resolvePaths } from '@hn/config';
+import { resolveHelper } from './helper.ts';
 import { HN_ENTRY } from './rpc-client.ts';
 
 /**
- * `hn bench`: runs tasks laid out as Terminal-Bench 2 tasks are for Harbor (`instruction.md`, `task.toml`,
+ * `hn bench` (decision 14): runs tasks laid out as Terminal-Bench 2 tasks are for Harbor (`instruction.md`, `task.toml`,
  * `environment/`, `tests/`, `solution/`). Docker is off on this machine and the public tasks are Linux images, so this
  * runner uses the Windows native box instead: the agent is a real headless `hn -p --sandbox native` session on a fresh
  * copy of `environment/workspace`, and the task's test runs in a box of its own, so nothing the agent wrote ever runs
@@ -104,7 +106,7 @@ export interface BenchOptions {
 }
 
 export async function runBench(options: BenchOptions): Promise<BenchResult[]> {
-  const helper = await findHelper({ env: options.env, repoRoot: options.repoRoot });
+  const helper = await resolveHelper({ env: options.env, repoRoot: options.repoRoot, home: resolvePaths(options.env).home });
   if (helper === null) throw new HnError('SANDBOX_HELPER_MISSING', 'hn-sandbox is not built. Build it with: pnpm build:sandbox');
   const scratch = await mkdtemp(join(tmpdir(), 'hn-bench-'));
   const runner: BoxRunner = { helper, home: scratch };

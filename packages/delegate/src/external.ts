@@ -3,7 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import { runExternal } from '@hn/operations';
 import type { ToolDefinition } from '@hn/tools';
 
-/** One external agent the user configured: another coding agent, an ACP client or an SDK script. */
+/** One external agent the user configured: Claude Code, Codex, an ACP client or an SDK script. */
 export interface ExternalAgent {
   readonly name: string;
   readonly description: string;
@@ -66,7 +66,7 @@ export interface ExternalToolOptions {
 const clean = (text: string): string => text.replace(/["<>\r\n]/g, '_');
 
 /**
- * `external_agent`: hands a task to an agent hn does not control. It runs on the host with its own
+ * `external_agent` (decision 5): hands a task to an agent hn does not control. It runs on the host with its own
  * tools, so every call needs a person, the card says so, and it is refused outright in yolo (unattended, and meant to
  * stay inside a box), in a boxed session, and in children (never registered there).
  */

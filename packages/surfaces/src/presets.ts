@@ -2,7 +2,7 @@ import { sanitizeForDisplay } from '@hn/core';
 import type { TaskRequest } from '@hn/delegate';
 import type { OpenSession } from './session-types.ts';
 
-/** The presets: chains of the crew that a person starts by typing. */
+/** Section 11.2's presets: chains of the crew that a person starts by typing. */
 export const PRESETS: Readonly<Record<string, readonly string[]>> = {
   implement: ['scout', 'planner', 'worker'],
   'scout-and-plan': ['scout', 'planner'],

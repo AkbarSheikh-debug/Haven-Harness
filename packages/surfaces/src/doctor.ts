@@ -13,14 +13,15 @@ import {
   dockerPlatformName,
   findBash,
   findDocker,
-  findHelper,
   probeKeychain,
   ripgrepPath,
   strayBoxes,
   verifyTier,
 } from '@hn/operations';
+import { verifyInstalledTree } from '@hn/release';
 import { TrustStore, loadBashParser, loadLocalPolicy, unusableGrammars, verifyAudit } from '@hn/security';
 import { loadMcpConfig } from './mcp-config.ts';
+import { readReleaseInfo, resolveHelper } from './helper.ts';
 
 /**
  * `hn doctor`: what is true about this machine's security posture, said plainly. A check says ok, warn or fail, and a
@@ -76,9 +77,18 @@ export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
   add('__proto__ disabled', protoOff ? 'ok' : 'fail', protoOff ? 'started with --disable-proto=throw' : 'not disabled. Start hn through its launcher, which sets --disable-proto=throw');
 
   // The helper is what makes file access safe against a link swapped in mid-operation.
-  const helper = await findHelper({ env, repoRoot: options.repoRoot, home: paths.home });
+  const installed = await readReleaseInfo(env);
+  if (installed !== null) {
+    const tree = await verifyInstalledTree(installed.root);
+    add('release integrity', tree.ok ? 'ok' : 'fail', tree.ok ? `${tree.checked} files match the manifest signed for ${tree.version}` : `${tree.problems.join('; ')}. Reinstall hn`);
+  }
+  const helper = await resolveHelper({ env, repoRoot: options.repoRoot, home: paths.home, download: false }).catch((error: unknown) => {
+    add('hn-sandbox helper', 'fail', message(error));
+    return null;
+  });
   if (helper === null) {
-    add('hn-sandbox helper', 'fail', 'not found, so file access is refused. Build it with: pnpm build:sandbox');
+    if (installed === null) add('hn-sandbox helper', 'fail', 'not found, so file access is refused. Build it with: pnpm build:sandbox');
+    else if (!checks.some((check) => check.name === 'hn-sandbox helper')) add('hn-sandbox helper', 'warn', `not installed yet. hn fetches ${installed.version} for ${process.platform}-${process.arch} and checks its signature the first time a session needs it, or run: hn setup`);
   } else {
     const scratch = await mkdtemp(join(tmpdir(), 'hn-doctor-'));
     try {
@@ -179,6 +189,7 @@ export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
     }
   }
   add('external sandbox', 'ok', (await stat(join(paths.home, 'external-sandbox-allowed')).catch(() => null)) === null ? 'no operator allow entry, so --external-sandbox is refused' : 'an operator allow entry exists, so --external-sandbox is possible on a CI host');
+  add('benchmark container', 'ok', (await stat(join(paths.home, 'benchmark-container-allowed')).catch(() => null)) === null ? 'no operator allow entry, so --benchmark-container is refused' : 'an operator allow entry exists, so --benchmark-container works inside a Linux container that sets HN_BENCH_CONTAINER=1');
   return checks;
 }
 

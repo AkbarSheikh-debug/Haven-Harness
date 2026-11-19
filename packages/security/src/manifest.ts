@@ -2,7 +2,7 @@ import { canonicalForRules } from './rules.ts';
 import { isControlPath } from './trust.ts';
 
 /**
- * The host-exec manifest. The worktree a box wrote is hostile output: a file in it
+ * The host-exec manifest. The worktree a box wrote is hostile output (invariant 13): a file in it
  * can make the HOST run code the next time anything touches it, such as `git status`, an editor,
  * `make` or a CI job. Changes to these paths are never applied without a human seeing the diff.
  */

@@ -32,6 +32,6 @@ export const DEFAULTS = {
   maxOutputTokens: 32_000,
   effort: 'high',
   mainModel: 'claude-opus-5-5',
-  /** Writes compaction summaries on the Anthropic route. A local route uses its main model. */
+  /** Writes compaction summaries on the Anthropic route (Phase 3 decision 1). A local route uses its main model. */
   summaryModel: 'claude-haiku-5-5',
 } as const;

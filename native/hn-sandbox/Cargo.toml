@@ -2,7 +2,7 @@
 name = "hn-sandbox"
 version = "0.0.0"
 edition = "2021"
-license = "Apache-2.0"
+license = "MIT"
 publish = false
 description = "Path-safe file access, keychain and the Windows native box (AppContainer + Job Object) for hn."
 

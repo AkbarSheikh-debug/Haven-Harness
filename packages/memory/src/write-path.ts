@@ -9,7 +9,7 @@ export const MEMORY_TARGETS = ['notes', 'memory', 'user'] as const;
 export type MemoryTarget = (typeof MEMORY_TARGETS)[number];
 
 /**
- * The user's own words in this turn ask to remember. A fixed list, no model,
+ * Phase 4 decision 3: the user's own words in this turn ask to remember. A fixed list, no model,
  * so nothing the model reads can argue its way past it. A miss costs one card, never a wrong write.
  */
 const REMEMBER = /\b(remember|memori[sz]e|don'?t forget|do not forget|keep in mind|note that|save (?:this|that|it)? ?(?:to|in) memory|from now on)\b/i;

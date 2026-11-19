@@ -16,7 +16,7 @@ export interface HandoffDoor {
 }
 
 /**
- * `/handoff`: typed by the person, never decided by the agent. A draft is written to a file the person
+ * `/handoff` (section 11.3): typed by the person, never decided by the agent. A draft is written to a file the person
  * may edit; on a plain yes the current session ends and a new one opens with the note as context, linked to this one
  * and carrying its taint. Returns the new session, or null when the person stayed.
  */

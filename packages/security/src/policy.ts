@@ -6,7 +6,7 @@ import { canonicalForRules } from './rules.ts';
 import type { GateCall, Mode } from './gate.ts';
 
 /**
- * Policy and identity. A policy file on a laptop does not bind the laptop's owner, so what is advisory and
+ * Policy and identity (8.6). A policy file on a laptop does not bind the laptop's owner, so what is advisory and
  * what is enforced depends on where the credential lives: this file is the local, advisory half (it stops the
  * agent, and mistakes, not the person at the keyboard), and the signing and capability types below are what the
  * team-mode broker enforces later. Layers are org, then OU, team, role, user, and a call must be allowed by
@@ -41,7 +41,7 @@ export interface Policy {
   readonly approvers?: { readonly users?: readonly string[]; readonly roles?: readonly string[]; /** The person who asked may not approve their own request. */ readonly separate?: boolean };
   /** Pushes the broker makes for this person: repositories it may push to, and refs that need an approval first. */
   readonly git?: { readonly repos?: readonly string[]; readonly protect?: readonly string[] };
-  /** Memory gates: whether this person may write team memory, who it may be shared with, whether the agent may dream over or /learn from their sessions, and the most days an entry may live. */
+  /** Memory gates (slide 37): whether this person may write team memory, who it may be shared with, whether the agent may dream over or /learn from their sessions, and the most days an entry may live. */
   readonly memory?: { readonly write?: boolean; readonly share?: readonly ('user' | 'ou' | 'role' | 'org')[]; readonly dream?: boolean; readonly learn?: boolean; readonly maxDays?: number };
 }
 

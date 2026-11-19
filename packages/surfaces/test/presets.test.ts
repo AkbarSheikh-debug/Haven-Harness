@@ -32,7 +32,7 @@ describe('presets', () => {
     await model.close();
   });
 
-  it('defines the three presets as chains of the crew', () => {
+  it('defines the three presets from the plan as chains of the crew', () => {
     assert.deepEqual(PRESETS['implement'], ['scout', 'planner', 'worker']);
     assert.deepEqual(PRESETS['scout-and-plan'], ['scout', 'planner']);
     assert.deepEqual(PRESETS['implement-and-review'], ['scout', 'planner', 'worker', 'reviewer']);

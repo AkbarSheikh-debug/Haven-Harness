@@ -18,7 +18,7 @@ export interface Evidence {
 
 /**
  * One proposal. `text` is the exact bytes a yes would store, so a card can never show a friendly
- * summary while storing something else. Proposals are appended, never edited.
+ * summary while storing something else (10.8). Proposals are appended, never edited.
  */
 export interface Proposal {
   readonly v: 1;

@@ -73,7 +73,7 @@ describe('capability grants', () => {
   });
 });
 
-describe('narrowing', () => {
+describe('narrowing (invariant 4)', () => {
   const rank: Record<Mode, number> = { 'read-only': 0, plan: 0, safe: 1, smart: 1, 'accept-edits': 2, 'dont-ask': 3, yolo: 4 };
   const options = { tier: 2, parentAllow: ['write_file', 'bash'], roleTools: null };
 

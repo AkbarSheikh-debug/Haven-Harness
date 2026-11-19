@@ -5,7 +5,7 @@ import { mintCapability, verifyCapability, type Capability, type Identity } from
 import { writeAtomic } from './ledger.ts';
 
 /**
- * The broker's tokens. Both kinds are the harness's macaroons, keyed by a secret only the broker holds,
+ * The broker's tokens (decision 3). Both kinds are the Phase 2 macaroons, keyed by a secret only the broker holds,
  * with its own address as the audience and a short expiry. Who a token speaks for is looked up here by its id; it is
  * never read from a caveat, because a holder may add caveats. A holder can narrow a token (a child's tools and
  * paths) and nothing else. Revoking a login revokes every session token issued under it.

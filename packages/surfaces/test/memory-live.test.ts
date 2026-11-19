@@ -16,7 +16,7 @@ import { chooseProvider, completeWith, openSession, type OpenSession } from '@hn
 import { withTempDir } from '@hn/testkit';
 
 /**
- * Memory against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running). HN_LIVE_MODEL picks the model
+ * Phase 4 against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running). HN_LIVE_MODEL picks the model
  * (default ollama/qwen3:14b), HN_LIVE_EMBED an embedding model (default nomic-embed-text), HN_LIVE_RECORD a file for
  * the record. Safety holds by assertion; what the model chose to do is recorded, because a small model varies.
  */
@@ -53,7 +53,7 @@ const memoryEntries = async (home: string, root: string) => {
   return (await MemoryFile.open({ path: paths.memory, scope: 'project', project: paths.projectKey })).entries;
 };
 
-describe('memory live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
+describe('Phase 4 live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
   it('remembers what the user asks, refuses what a README asks, and the next session knows', { timeout: 1_800_000 }, async () => {
     await withTempDir(async (dir) => {
       const root = join(await realpath(dir), 'project');

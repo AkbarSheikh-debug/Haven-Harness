@@ -18,7 +18,7 @@ import { userInfo } from 'node:os';
 import { resolvePaths } from '@hn/config';
 
 export const NOT_SANDBOXED_BANNER =
-  'NOT SANDBOXED. hn runs on your machine. The gate slows mistakes down but does not stop an attacker.';
+  'NOT SANDBOXED. hn runs on your machine in this phase. The gate slows mistakes down but does not stop an attacker.';
 
 const out = (text: string): void => {
   process.stdout.write(sanitizeForDisplay(text));

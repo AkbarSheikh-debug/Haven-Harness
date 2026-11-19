@@ -8,7 +8,7 @@ export type { DatabaseSync } from 'node:sqlite';
 let ctor: (new (path: string) => DatabaseSync) | null = null;
 
 /**
- * `node:sqlite` behind one function (its stability is a risk, so it is wrapped). Node
+ * `node:sqlite` behind one function (section 15: its stability is a risk, so it is wrapped). Node
  * prints an experimental warning when the module loads, which would land in the middle of the
  * REPL, so that one warning is held back while it loads.
  */

@@ -12,7 +12,7 @@ const deflateAsync = promisify(deflate);
 const inflateAsync = promisify(inflate);
 
 /**
- * Undoing files. A content-addressed, encrypted store of whole files under `~/.hn/checkpoints/`,
+ * Undoing files (11.7). A content-addressed, encrypted store of whole files under `~/.hn/checkpoints/`,
  * with no state in the project. Project ignores are never honoured, because an attacker would decide
  * what gets saved. Secrets are excluded by name and by a content scan, so `.env` never reaches
  * long-term storage. What cannot be saved or restored is reported on every checkpoint and rollback,

@@ -64,6 +64,7 @@ export class Agent {
   readonly #writer: SessionWriter;
   readonly #lock: SessionLock;
   readonly #log: LiveLog;
+  #closed = false;
   #steers: string[] = [];
   #notices: { text: string; origin: SessionEvent['origin'] }[] = [];
   #redirect: string | null = null;
@@ -129,8 +130,14 @@ export class Agent {
     return this.#log.events;
   }
 
-  /** Adds a log-only record, such as a gate decision. */
+  /**
+   * Adds a log-only record, such as a gate decision. Once the session has closed there is no log to add to, and a
+   * record that arrives then (a background job or a child that settles as the session ends) is dropped, not thrown:
+   * thrown from a promise callback it would end the whole process before the run's result was written. Nothing is lost
+   * that matters, because the next open closes any job or child still open in the log as `lost`.
+   */
   record(type: EventType, data: Record<string, unknown>): void {
+    if (this.#closed) return;
     this.#log.append(type, data);
   }
 
@@ -142,7 +149,7 @@ export class Agent {
   /**
    * A notice from the harness, such as a background child settling. During a turn it arrives at the next step
    * boundary; between turns it is added now and the next turn sees it. It keeps its real origin and is never the
-   * user's.
+   * user's (invariant 15).
    */
   notice(text: string, origin: Exclude<SessionEvent['origin'], 'user' | 'human-selected'>): void {
     if ((origin as string) === 'user' || (origin as string) === 'human-selected') throw new Error('A notice is never from the user.');
@@ -200,7 +207,7 @@ export class Agent {
 
   /**
    * Adds a message for the model between turns, such as a child's review from /skill-test. It carries its real
-   * origin; nothing added here can claim to be the user.
+   * origin; nothing added here can claim to be the user (invariant 15).
    */
   async addContext(text: string, origin: Exclude<SessionEvent['origin'], 'user' | 'human-selected'>): Promise<void> {
     if (this.#turn !== null) throw new Error('Context is added between turns. Wait for this turn to end.');
@@ -209,7 +216,7 @@ export class Agent {
     await this.#log.flush();
   }
 
-  /** `/compact`: one fold now, between turns. It clears the cooldown and no-op backoff. */
+  /** `/compact`: one fold now, between turns. It clears the cooldown and no-op backoff, as the plan says. */
   async compact(): Promise<CompactOutcome> {
     if (this.#turn !== null) throw new Error('Compaction runs between turns. Wait for this turn to end.');
     const guards = this.#compaction.guards;
@@ -218,6 +225,7 @@ export class Agent {
   }
 
   async close(): Promise<void> {
+    this.#closed = true;
     try {
       await this.#writer.close();
     } finally {
@@ -227,7 +235,7 @@ export class Agent {
 
   /**
    * One turn. `origin` is `user` for what a person typed; a turn the harness starts itself (background review) is
-   * `harness`, so it never claims to be the user and gets no recall. A schedule's model-written prompt is
+   * `harness`, so it never claims to be the user (invariant 15) and gets no recall. A schedule's model-written prompt is
    * `model-derived`, and a prompt from another process over a control channel is `ipc`.
    */
   async run(input: string, options: { readonly origin?: Exclude<SessionEvent['origin'], 'human-selected'> } = {}): Promise<TurnResult> {

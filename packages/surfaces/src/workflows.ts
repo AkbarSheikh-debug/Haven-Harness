@@ -32,7 +32,7 @@ export function extractJson(text: string): unknown {
 }
 
 /**
- * An agent's answer under a schema: a schema miss is a failure, so the value is null. Only the shape a workflow
+ * An agent's answer under a schema (11.4): a schema miss is a failure, so the value is null. Only the shape the plan
  * needs is checked: the top-level type, and the required keys of an object.
  */
 export function shapeAnswer(text: string, schema: unknown): unknown {

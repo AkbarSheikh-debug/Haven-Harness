@@ -13,6 +13,10 @@ client.
 > test each), but interfaces will still change. Windows is the most-tested platform today. Expect rough edges, and
 > please report them.
 
+![Haven Harness: a task done in a verified box, an approval card, and a refused escape](docs/demo.gif)
+
+*Recorded from a real run in the Windows box. The model is scripted so the recording repeats; the box, the approval cards, the edit, the test run and the refusal are real. Re-record it with `scripts/demo/record.ts` and `scripts/demo/render_gif.py`.*
+
 ---
 
 ## Why another coding agent?
@@ -71,6 +75,12 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 
 **Models**
 - Anthropic, any OpenAI-compatible endpoint, and local models through **Ollama** (`--model ollama/qwen3:14b`).
+- **Per-role models:** a cheap or local model reads while a strong one plans and reviews, chosen in `routing.json` and
+  checked against your policy when the session opens ([docs/guide/routing.md](docs/guide/routing.md)).
+- Every run and fleet job reports **what it cost**, by role and model: tokens, cache hits and dollars, with an unknown
+  price shown as unknown, never as zero ([docs/guide/cost.md](docs/guide/cost.md)).
+- **Benchmarks you can rerun:** score hn on Terminal-Bench or SWE-bench through Harbor with one resumable, spend-capped
+  command that records exactly what it ran ([docs/guide/benchmarks.md](docs/guide/benchmarks.md)).
 
 ---
 
@@ -90,7 +100,22 @@ listed in [docs/guide/security-model.md](docs/guide/security-model.md).
 
 ## Quick start
 
-Requirements: **Node 24.14+**, **pnpm** (via `corepack enable`), and **Rust** (stable) for the native helper.
+Requirements: **Node 24.14+**. Nothing else: no pnpm, no Rust, no compiler.
+
+```bash
+npm install -g haven-harness
+hn doctor
+```
+
+Or without installing: `npx haven-harness doctor`.
+
+The package runs no install scripts. The one native part, the sandbox helper `hn-sandbox`, is downloaded the first
+time a session needs it (or when you run `hn setup`), for your platform only, and **hn refuses it unless its SHA-256
+and its signature check** against the key pinned in the package. Offline or air-gapped:
+`hn setup --from <folder holding the release's hn-sandbox files>`. All of it is explained in
+[docs/guide/install.md](docs/guide/install.md).
+
+Building from source instead (needs **pnpm** via `corepack enable`, and **Rust** stable):
 
 ```bash
 git clone https://github.com/AkbarSheikh-debug/haven-harness.git
@@ -101,27 +126,25 @@ pnpm build:sandbox          # builds native/hn-sandbox (the safe file helper and
 node packages/surfaces/bin/hn.mjs doctor
 ```
 
-Or install a signed release: see [docs/guide/releases.md](docs/guide/releases.md) for how to check it first.
-
 Give it a model:
 
 ```bash
 # Anthropic
 export ANTHROPIC_API_KEY=...            # PowerShell: $env:ANTHROPIC_API_KEY = "..."
-node packages/surfaces/bin/hn.mjs
+hn
 
 # A local model through Ollama
-node packages/surfaces/bin/hn.mjs --model ollama/qwen3:14b
+hn --model ollama/qwen3:14b
 
 # Any OpenAI-compatible server
-node packages/surfaces/bin/hn.mjs --model <name> --base-url http://localhost:8000/v1
+hn --model <name> --base-url http://localhost:8000/v1
 
 # Through your team's broker (no key on this machine)
-node packages/surfaces/bin/hn.mjs login https://broker.example.com
-node packages/surfaces/bin/hn.mjs --team --model <a model the policy allows you>
+hn login https://broker.example.com
+hn --team --model <a model the policy allows you>
 ```
 
-Tip: make an alias, e.g. `alias hn="node /path/to/haven-harness/packages/surfaces/bin/hn.mjs"`.
+From a source checkout, make an alias: `alias hn="node /path/to/haven-harness/packages/surfaces/bin/hn.mjs"`.
 
 ### Common commands
 
@@ -142,6 +165,7 @@ hn prepare --image <name>@sha256:... # install dependencies through a locked-dow
 hn login <broker> | hn logout        # team mode
 hn approvals [approve|deny <id>]     # requests waiting for you, as an approver
 hn broker broker.json                # run a broker (see docs/guide/team-mode.md)
+hn setup                             # fetch and verify the sandbox helper now (otherwise at first use)
 hn update <release.tgz>              # install a newer signed release
 ```
 

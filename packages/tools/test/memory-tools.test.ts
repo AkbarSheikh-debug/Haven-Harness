@@ -141,7 +141,7 @@ describe('the memory tool', () => {
   });
 });
 
-describe('the remember check', () => {
+describe('the remember check (decision 3)', () => {
   it('matches the fixed phrases and nothing else', () => {
     for (const yes of ['Please remember we use pnpm', "Don't forget: staging is eu-west", 'keep in mind the API is v2', 'From now on use tabs', 'save this to memory']) assert.ok(rememberRequested(yes), yes);
     for (const no of ['fix the build', 'what do you recall about X', 'remembering is hard', null]) assert.ok(!rememberRequested(no), String(no));

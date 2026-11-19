@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULTS, projectKey, resolvePaths } from '@hn/config';
 import { Agent, newSessionId, type LoopConfig, type SummaryRoute } from '@hn/loop';
 import { HnError } from '@hn/core';
-import { CheckpointStore, Workspaces, createSafeFiles, findHelper, localOperations, type ImportPlan } from '@hn/operations';
+import { CheckpointStore, Workspaces, createSafeFiles, localOperations, type ImportPlan } from '@hn/operations';
 import { KEY_ENV_NAMES, KeyStore, type StreamEvent } from '@hn/provider';
 import { chooseProvider, summaryRoutes } from './providers.ts';
 import { RateLimiter, createExternalTool, limitProvider, loadExternalAgents, rateLimitsFromEnv, type RateGate } from '@hn/delegate';
@@ -29,8 +29,9 @@ import { createTeam, type TeamHub } from './teams.ts';
 import type { SubagentManager } from '@hn/delegate';
 import { currentGoal } from '@hn/context';
 import { createCheckpointing, type SessionCheckpoints } from './checkpointing.ts';
-import { assertExternalSandbox, type FinishReport, type SandboxOptions } from './sandbox.ts';
-import { openSandbox, type Sandbox } from './native-sandbox.ts';
+import { type FinishReport, type SandboxOptions } from './sandbox.ts';
+import { claimOuterSandbox } from './outer-sandbox.ts';
+import { openSandbox, type Sandbox } from './native-sandbox.ts'; import { resolveHelper } from './helper.ts';
 
 export const SYSTEM_PROMPT = `You are hn, a coding agent working in the user's project.
 
@@ -48,9 +49,9 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
   const sessionId = options.sessionId ?? newSessionId();
   // Below tier 3 the helper is the only way to open a project file without a link being able to redirect it.
   // Without it file access refuses, and nothing falls back to the unsafe path.
-  const helper = await findHelper({ env, repoRoot: fileURLToPath(new URL('../../../', import.meta.url)), home: paths.home });
+  const helper = await resolveHelper({ env, repoRoot: fileURLToPath(new URL('../../../', import.meta.url)), home: paths.home });
   if (helper === null && options.unsafeNoHelper !== true) {
-    throw new HnError('SANDBOX_HELPER_MISSING', 'hn-sandbox is not built, so file access is refused. Build it with: pnpm build:sandbox');
+    throw new HnError('SANDBOX_HELPER_MISSING', 'hn-sandbox is not available, so file access is refused. From source build it with: pnpm build:sandbox; an installed copy fetches it with: hn setup');
   }
   const files = helper === null ? null : createSafeFiles(helper);
 
@@ -66,17 +67,14 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
     root = sandbox.copy;
   }
   // Everything this session starts carries its id, so a harness launched from inside it knows it is nested and narrows
-  // itself. It is set per backend, never in process.env, so two sessions in one process share nothing.
+  // itself. It is set per backend, never in process.env, so two sessions in one process share nothing (section 12).
   const local = localOperations(join(paths.home, 'spill', sessionId), { env: { HN_PARENT_SESSION: sessionId }, ...(files === null ? {} : { safe: { files, root } }) });
   // In a box, jobs run in the box too: the local process starter must never come along with the local file tools.
   const ops = sandbox === null ? local : { ...local, bash: sandbox.bash, processes: sandbox.processes };
-  if (options.externalSandbox === true) {
-    if (sandbox !== null) throw new HnError('SANDBOX_CONFLICT', 'Use --sandbox container or --external-sandbox, not both.');
-    if (options.mode !== 'dont-ask' || options.allow === undefined) {
-      throw new ModeRefusedError(options.mode, 'a claimed outer sandbox caps the session at dont-ask with an explicit --allow list, never yolo.');
-    }
-    const claimed = await assertExternalSandbox(paths.home, env, ops.bash, options.workdir);
-    tier = claimed.tier;
+  // An operator's claim of an outer boundary (--external-sandbox, --benchmark-container): capped, and never verified (outer-sandbox.ts).
+  const outer = await claimOuterSandbox({ options, boxed: sandbox !== null, home: paths.home, env, bash: ops.bash });
+  if (outer !== null) {
+    tier = outer.tier;
     assertedTier = true;
   }
 
@@ -206,7 +204,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
     record: (type, data) => agent?.record(type, data),
   });
   notes.push(...hooks.notes);
-  // Children get no memory: a child starts from its brief alone.
+  // Children get no memory: the plan blocks it in them, and a child starts from its brief alone.
   const memory = options.childOf === undefined ? await openMemory({ home: paths.home, workdir: options.workdir, taint, sessionId, attended: options.approver !== undefined, approver: identity.user, events: () => agent?.events ?? [], sessionLogs: join(paths.sessions, projectKey(options.workdir)), logKey, env, record: (type, data) => agent?.record(type, data), model: { ...summaryRoutes(provider, model, caps)[0]!, maxOutput: caps.maxOutput }, ...(options.now === undefined ? {} : { now: options.now }) }) : null;
   notes.push(...(memory?.notes ?? []));
   if (!policy.modelAllowed(model)) throw new HnError('MODEL_NOT_ALLOWED', `The policy does not allow the model ${model}.`);
@@ -216,7 +214,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
       ? join(paths.sessions, projectKey(options.workdir), sessionId)
       : join(paths.sessions, options.childProject ?? projectKey(options.workdir), `${options.childOf}.children`, sessionId);
   // Roles: the built-in crew, the user's own, and project roles a person approved.
-  const roleSet = await openRoles({ files, hnHome: paths.home, projectRoot: instructions.projectRoot, trust: trustStore, ...(options.instructionApprover === undefined ? {} : { approve: options.instructionApprover }) });
+  const roleSet = await openRoles({ files, hnHome: paths.home, projectRoot: instructions.projectRoot, trust: trustStore, ...(options.instructionApprover === undefined ? {} : { approve: options.instructionApprover }), ...(options.childOf === undefined ? { routing: { model: options.model, team: options.team !== undefined, allowed: (name: string) => policy.modelAllowed(name), ...(options.baseUrl === undefined ? {} : { baseUrl: options.baseUrl }) } } : {}) });
   notes.push(...roleSet.notes);
   let toolNames: readonly string[] = [];
   const teamHub: TeamHub = { current: null };
@@ -240,7 +238,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
     roles: roleSet.roles,
     tier,
     allow: options.allow ?? [],
-    resolveModel: modelResolver({ cheap: summaryRoutes(provider, model, caps)[0]!.model, model, cli: options.model, caps, local: options.baseUrl !== undefined || options.model.startsWith('ollama/'), allowed: (name) => policy.modelAllowed(name) }),
+    resolveModel: modelResolver({ cheap: summaryRoutes(provider, model, caps)[0]!.model, model, cli: options.model, caps, local: options.baseUrl !== undefined || options.model.startsWith('ollama/'), allowed: (name) => policy.modelAllowed(name), routing: roleSet.routing }),
     record: (type, data) => agent?.record(type, data),
     events: () => agent?.events ?? [],
     parentTools: () => toolNames,
@@ -262,7 +260,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
     ? createTeam({ workdir: options.workdir, home: paths.home, sessionId, manager: subagents.manager, hub: teamHub, record: (type, data) => agent?.record(type, data), events: () => agent?.events ?? [], notify: (text, origin) => agent?.notice(text, origin) })
     : null;
   let dispatcherRef: HarnessDispatcher | null = null;
-  // Workflows and run_code: root sessions only. Below tier 3 they refuse, because the vm is not a boundary.
+  // Workflows and run_code: root sessions only. Below tier 3 they refuse, because the vm is not a boundary (11.4).
   const workflowTools =
     options.childOf === undefined
       ? createWorkflows({
@@ -287,7 +285,7 @@ export async function openSession(options: CliOptions, keys: KeyStore): Promise<
       ...mcpServers.flatMap((server) => server.definitions()),
       ...(skills === null ? [] : [skills.tool]),
       ...subagents.tools,
-      // External agents run outside the gate: root sessions only, from the user's own config.
+      // External agents run outside the gate: root sessions only, from the user's own config (decision 5).
       ...(externalTool === null ? [] : [externalTool]),
       ...workflowTools,
       // ralph and schedules: root sessions only, like workflows; children never get them.

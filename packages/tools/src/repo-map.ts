@@ -6,7 +6,7 @@ import { wrapUntrusted } from './web-tools.ts';
 import type { ToolArgs, ToolContext, ToolDefinition } from './types.ts';
 
 /**
- * The repo map: definitions from the real grammars, files ranked by PageRank over "this file
+ * The repo map (section 9.6, decision 7): definitions from the real grammars, files ranked by PageRank over "this file
  * uses a name that file defines", personalised on the files the session edited or the caller named. It is cut to a
  * token budget and comes back as project data. On demand only, so it never grows the prompt by itself.
  */

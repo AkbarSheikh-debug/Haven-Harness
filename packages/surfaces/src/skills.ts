@@ -64,7 +64,7 @@ export async function openSkills(options: {
     options.exec.run({ purpose: 'validate', command, scripts }, signal),
   );
   const tool = createSkillTool(catalogOf(set, options.files), validator);
-  // Each use of a user skill is telemetry for the curator, written beside those skills.
+  // Each use of a user skill is telemetry for the curator (10.7), written beside those skills.
   const counted: ToolDefinition = {
     ...tool,
     async execute(args, context) {

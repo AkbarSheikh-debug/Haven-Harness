@@ -61,7 +61,7 @@ export interface DraftOptions {
 }
 
 /**
- * The `/handoff` draft: one call with no tools on the summary route. The draft is redacted and must
+ * The `/handoff` draft (section 11.3): one call with no tools on the summary route. The draft is redacted and must
  * pass the context-scope scan, because it opens the next session; otherwise the harness's own draft is used.
  */
 export async function draftHandoff(options: DraftOptions): Promise<{ readonly text: string; readonly by: 'model' | 'harness' }> {
@@ -87,7 +87,7 @@ export async function draftHandoff(options: DraftOptions): Promise<{ readonly te
 
 /**
  * The origin the draft carries into the new session: at least `model-derived`, and as bad as the worst thing the
- * parent saw. A person reading and editing it does not make it theirs.
+ * parent saw. A person reading and editing it does not make it theirs (invariant 15).
  */
 export function handoffOrigin(parentWorst: Origin): Exclude<Origin, 'user' | 'human-selected'> {
   const origin = joinOrigins('model-derived', parentWorst);

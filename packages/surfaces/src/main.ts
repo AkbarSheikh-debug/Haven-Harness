@@ -26,6 +26,8 @@ import { latestSession, type CliOptions } from './session.ts';
 import { loadTeamLogin, runApprovalsCommand, runLoginCommand } from './team.ts';
 import { loadBrokerConfig, runPolicyTool, startBroker } from '@hn/broker';
 import { runUpdateCommand } from './update-door.ts';
+import { runSetupCommand } from './setup-door.ts';
+import { loadPriceFile } from './cost-summary.ts';
 
 /** The installed release's version, or where this copy runs from. */
 async function releaseVersion(): Promise<string> {
@@ -123,6 +125,7 @@ async function main(): Promise<number> {
       sandbox: { type: 'string' },
       image: { type: 'string' },
       'external-sandbox': { type: 'boolean' },
+      'benchmark-container': { type: 'boolean' },
       resume: { type: 'string' },
       continue: { type: 'boolean' },
       json: { type: 'boolean' },
@@ -140,6 +143,7 @@ async function main(): Promise<number> {
       oracle: { type: 'boolean' },
       team: { type: 'boolean' },
       sig: { type: 'string' },
+      from: { type: 'string' },
     },
   });
   if (values.version === true) {
@@ -152,6 +156,9 @@ async function main(): Promise<number> {
     process.stdout.write(sanitizeForDisplay(formatDoctor(checks)));
     return doctorExitCode(checks);
   }
+
+  // The person's own prices, if they gave a file: every cost report below uses them.
+  await loadPriceFile(resolvePaths().home, (text) => process.stderr.write(text));
 
   const nestedCommand = process.env['HN_PARENT_SESSION'] !== undefined && process.env['HN_PARENT_SESSION'] !== '';
   if (values.print === undefined) {
@@ -167,7 +174,7 @@ async function main(): Promise<number> {
     const handled = (await runFleetCommand(context)) ?? (await runRalphCommand(context)) ?? (await runScheduleCommand(context)) ?? (await runSupervisorCommand({ ...context, args })) ?? (await runSandboxCommand({ positionals, nested: nestedCommand, out: context.out, repoRoot })) ?? (await runPrepareCommand({ positionals, nested: nestedCommand, out: context.out, ...(values.image === undefined ? {} : { image: values.image }), dryRun: values['dry-run'] === true }));
     if (handled !== null) return handled;
   }
-  // Terminal-Bench-format tasks in the Windows box. The model flags are passed to each agent run.
+  // Terminal-Bench-format tasks in the Windows box (decision 14). The model flags are passed to each agent run.
   if (positionals[0] === 'bench' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn bench cannot be run from inside an hn session.');
     if (positionals[1] === undefined) throw new HnError('BAD_COMMAND', 'hn bench <tasks folder> [--oracle] [--results file]');
@@ -176,7 +183,7 @@ async function main(): Promise<number> {
     const results = await runBench({ tasks, mode: values.oracle === true ? 'oracle' : 'hn', args: flags, env: process.env, repoRoot: fileURLToPath(new URL('../../../', import.meta.url)), ...(values.results === undefined ? {} : { results: values.results }), out: (text) => process.stdout.write(text) });
     return results.every((result) => result.passed) ? 0 : 1;
   }
-  // The web door: loopback only. The token is shown here, on the terminal, and never put in a URL.
+  // The web door (decision 12): loopback only. The token is shown here, on the terminal, and never put in a URL.
   if (positionals[0] === 'serve' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn serve cannot be started from inside an hn session.');
     const served = await startServe({ keys, cwd: process.cwd(), defaults: { model: values.model ?? DEFAULTS.mainModel, ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }), ...(values.window === undefined ? {} : { window: Number(values.window) }) } });
@@ -189,19 +196,24 @@ Ctrl+C to stop.
     await served.close();
     return 0;
   }
-  // The ACP door for editors. Refused inside a session for the same reason as hn rpc.
+  // The ACP door for editors (decision 11). Refused inside a session for the same reason as hn rpc.
   if (positionals[0] === 'acp' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn acp cannot be started from inside an hn session.');
     await serveAcp(process.stdin, process.stdout, { keys, defaults: { model: values.model ?? DEFAULTS.mainModel, ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }), ...(values.window === undefined ? {} : { window: Number(values.window) }), ...(values['num-ctx'] === undefined ? {} : { numCtx: Number(values['num-ctx']) }) } });
     return 0;
   }
-  // Updates: only from a person's command line, never from inside a session or from project files.
+  // Updates (Phase 8, decision 12): only from a person's command line, never from inside a session or from project files.
   if (positionals[0] === 'update' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn update cannot be run from inside an hn session.');
     const paths = resolvePaths();
     return (await runUpdateCommand({ positionals, ...(values.sig === undefined ? {} : { sig: values.sig }), home: paths.home, logKey: paths.logKey, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
   }
-  // Team mode: logging in to a broker, and running one. Never from inside a session.
+  // Fetching or installing the sandbox helper (Phase 9): only from a person's command line.
+  if (positionals[0] === 'setup' && values.print === undefined) {
+    if (nestedCommand) throw new HnError('NESTED_HN', 'hn setup cannot be run from inside an hn session.');
+    return (await runSetupCommand({ positionals, ...(values.from === undefined ? {} : { from: values.from }), home: resolvePaths().home, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
+  }
+  // Team mode (Phase 8): logging in to a broker, and running one. Never from inside a session.
   if ((positionals[0] === 'login' || positionals[0] === 'logout' || positionals[0] === 'broker' || positionals[0] === 'approvals') && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', `hn ${positionals[0]} cannot be run from inside an hn session.`);
     if (positionals[0] === 'approvals') return (await runApprovalsCommand({ positionals, home: resolvePaths().home, out: (text) => process.stdout.write(text) })) ?? 1;
@@ -215,7 +227,7 @@ Ctrl+C to stop.
     await broker.close();
     return 0;
   }
-  // The JSON-RPC door. A session's tool could otherwise start one to open looser sessions.
+  // The JSON-RPC door (decision 4). A session's tool could otherwise start one to open looser sessions.
   if (positionals[0] === 'rpc' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn rpc cannot be started from inside an hn session.');
     const defaults = {
@@ -247,7 +259,7 @@ Ctrl+C to stop.
   if (nested && !/^[A-Za-z0-9-]{1,64}$/.test(process.env['HN_PARENT_SESSION'] as string)) {
     throw new HnError('BAD_PARENT', 'HN_PARENT_SESSION is not a session id, so this nested hn will not start.');
   }
-  // A grant is the only way a nested hn runs above read-only, and only if it verifies with the log key.
+  // A grant is the only way a nested hn runs above read-only, and only if it verifies with the log key (decision 1).
   let grant: GrantBody | null = null;
   if (handoff?.grant !== null && handoff?.grant !== undefined) {
     if (values.mode !== undefined) throw new HnError('BAD_GRANT', 'A granted child takes its mode from the grant, never from --mode.');
@@ -262,17 +274,18 @@ Ctrl+C to stop.
   }
   if (values.sandbox !== undefined && values.sandbox !== 'container' && values.sandbox !== 'native') throw new HnError('BAD_SANDBOX', `--sandbox ${values.sandbox} is not available. The kinds are: container, native.`);
   // Without --image the image comes from the project's recipe, only as a person approved it; this is checked on every
-  // start, a resume included, so a recipe edited between sessions is never used without a person.
+  // start, a resume included, so a recipe edited between sessions is never used without a person (decision 9).
   const image = values.sandbox === 'container' && values.image === undefined ? await resolveRecipeImage(await recipeContext(workdir, process.env, fileURLToPath(new URL('../../../', import.meta.url)))) : values.image;
   const options: CliOptions = {
     workdir,
-    // A run with nobody watching is yolo inside a verified sandbox, and can only look anywhere else.
+    // A run with nobody watching is yolo inside a verified sandbox (slide 14), and can only look anywhere else.
     mode: values.mode ?? (nested ? 'read-only' : headless ? (values.sandbox !== undefined ? 'yolo' : 'read-only') : 'safe'),
     // A nested hn may only look, so leaving plan mode cannot be its way out of that limit.
     ...(nested ? { afterPlan: 'read-only' } : values['after-plan'] === undefined ? {} : { afterPlan: values['after-plan'] }),
     ...(values.verify === undefined ? {} : { verify: values.verify }),
     ...(values.sandbox === 'container' && image !== undefined ? { sandbox: { kind: 'container' as const, image } } : values.sandbox === 'native' ? { sandbox: { kind: 'native' as const } } : {}),
     ...(values['external-sandbox'] === true ? { externalSandbox: true } : {}),
+    ...(values['benchmark-container'] === true ? { benchmarkContainer: true } : {}),
     model: values.model ?? DEFAULTS.mainModel,
     ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }),
     ...(values.team === true ? { team: await loadTeamLogin(resolvePaths().home) } : {}),
@@ -284,7 +297,7 @@ Ctrl+C to stop.
     ...(values['inherit-taint'] === 'untrusted' ? { inheritTaint: true } : {}),
     ...(values['max-iterations'] === undefined ? {} : { maxIterations: Math.max(1, Math.min(500, Number(values['max-iterations']) || 1)) }),
     ...(grant === null ? {} : grantOptions(grant)),
-    // Agent teams are experimental: on with --teams or HN_TEAMS=1, for a root session only.
+    // Agent teams are experimental (11.5): on with --teams or HN_TEAMS=1, for a root session only.
     ...(!nested && (values.teams === true || process.env['HN_TEAMS'] === '1') ? { teams: true } : {}),
   };
 
@@ -305,7 +318,7 @@ Ctrl+C to stop.
   if (grant?.channel === true && channel === null) throw new HnError('BAD_GRANT', 'This child was granted a channel to its parent but has none, so it does not start.');
   if (headless && prompt !== undefined) {
     try {
-      // A team member gets its team tools and its inbox over the same channel.
+      // A team member gets its team tools and its inbox over the same channel (11.5).
       const member = channel !== null && grant?.team !== undefined ? { memberTools: createMemberTools((request) => channel.team(request)), inbox: (deliver: (text: string, origin: string) => void) => channel.onInbox(deliver) } : {};
       return await runPrint({ ...options, prompt, json: values.json === true, ...(channel === null ? {} : { routed: channel.approve, rateGate: channel.rate }), ...member }, keys);
     } finally {
@@ -313,7 +326,7 @@ Ctrl+C to stop.
       if (channel !== null) process.disconnect?.();
     }
   }
-  // The full-screen door: the same session as the REPL.
+  // The full-screen door (decision 13): the same session as the REPL.
   if (positionals[0] === 'tui' && positionals.length === 1 && !nested) return runTui(options, keys);
   return runRepl(options, keys);
 }

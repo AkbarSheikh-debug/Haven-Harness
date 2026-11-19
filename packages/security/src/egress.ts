@@ -2,7 +2,7 @@ import { BlockList, isIP } from 'node:net';
 import { networkInterfaces } from 'node:os';
 
 /**
- * Egress policy. `web_fetch`, `web_search` and MCP are external: they run outside the box, so "network
+ * Egress policy (8.8.5). `web_fetch`, `web_search` and MCP are external: they run outside the box, so "network
  * off" does not remove them as a way out. This is the part that needs no network: the checks made before a
  * name is resolved, the ranges an address may never be in, and the limits that apply once untrusted text is in
  * the session. The checks after resolving, and the connection itself, are in `operations/src/web.ts`.

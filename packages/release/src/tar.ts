@@ -3,7 +3,7 @@ import { HnError } from '@hn/core';
 /**
  * A deterministic tar (POSIX ustar, with a PAX header only for long paths). The same files always give the same
  * bytes: entries are sorted, times, owners and names are fixed, and only regular files are written, so two builds
- * of one commit can be compared byte for byte. The reader is the update path's first line of defence:
+ * of one commit can be compared byte for byte (8.8.12). The reader is the update path's first line of defence:
  * it accepts only regular files with plain relative paths, refuses links, devices, absolute paths, `..`, drive
  * letters and backslashes, and caps sizes, so a hostile archive cannot write outside the folder it is unpacked into.
  */

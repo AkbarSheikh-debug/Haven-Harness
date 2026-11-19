@@ -1,7 +1,7 @@
 import { sanitizeForDisplay } from '@hn/core';
 
 /**
- * What `hn serve` shows. Model text is rendered here, on the server, into HTML that can
+ * What `hn serve` shows (decision 12, section 8.8.4). Model text is rendered here, on the server, into HTML that can
  * hold no markup of the model's: every character is escaped first, then a few markdown forms become fixed tags. An image
  * is never an `<img>`: it is shown as text with its URL, so nothing is fetched to show it (a fetch could carry data
  * out). A link shows its full URL beside its text and needs a click. Raw HTML and Mermaid are text.

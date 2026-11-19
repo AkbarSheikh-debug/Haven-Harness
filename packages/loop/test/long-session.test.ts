@@ -11,7 +11,7 @@ import { config, fakeTools, key, open } from './helpers.ts';
 import { assertFoldsClosed, assertOneResultPerCall, assertSurfaceBalanced, DRAFT, isSummaryRequest, pairingProblem, requestTokens } from './pressure.ts';
 
 /**
- * A simulated 8-hour session. A fake model works through 32 turns of about
+ * The Phase 3 exit gate, decision 3: a simulated 8-hour session. A fake model works through 32 turns of about
  * 100 steps each on a fake clock, with parallel calls, results up to the dispatcher's 100,000-character cap,
  * re-reads, failures, and three crashes that also lose the tail of the log. The model counts its own context
  * and refuses any request that does not fit, so "no overflow" is judged by the far side.
@@ -158,7 +158,7 @@ function checkLog(events: readonly SessionEvent[], label: string): void {
   assertFoldsClosed(events, label);
 }
 
-describe('a simulated 8-hour session', () => {
+describe('exit gate: a simulated 8-hour session', () => {
   for (const [window, output] of [
     [32_000, 4_000],
     [64_000, 8_000],

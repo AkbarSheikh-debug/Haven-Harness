@@ -8,7 +8,7 @@ import type { CliOptions } from './session.ts';
 import { parseKeys, renderScreen, type Entry, type InboxCard, type InboxDraft, type Key, type ScreenState } from './tui-screen.ts';
 
 /**
- * `hn tui`: the same session as the line REPL, full screen, with an inbox of what waits for a person:
+ * `hn tui` (decision 13): the same session as the line REPL, full screen, with an inbox of what waits for a person:
  * approval cards, and memory drafts that need a YES. The controller holds all the behaviour and no terminal, so it is
  * tested by feeding it keys. An approval is decided only by Enter on a typed answer: "yes" allows once, anything else
  * denies, and an empty Enter decides nothing.

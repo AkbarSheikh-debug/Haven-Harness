@@ -11,7 +11,7 @@ import { startFakeOpenAI, withTempDir, type FakeOpenAI } from '@hn/testkit';
 const fixture = fileURLToPath(new URL('./fixtures/workflow-parent.ts', import.meta.url));
 const SCRIPT = "const out = []; for (let i = 0; i < 5; i += 1) out.push(await agent('step ' + i)); return out;";
 
-describe('a workflow crash resumes', () => {
+describe('a workflow crash resumes (exit gate 5b)', () => {
   let model: FakeOpenAI;
   const live: string[] = [];
   let onStep: ((step: string) => void) | null = null;

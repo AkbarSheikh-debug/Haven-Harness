@@ -6,7 +6,7 @@ import { wrapUntrusted } from './web-tools.ts';
 import { ToolProblem, type ToolArgs, type ToolDefinition } from './types.ts';
 
 /**
- * The MCP client. A server is somebody else's code and everything it says is attacker-reachable text, so:
+ * The MCP client (8.5). A server is somebody else's code and everything it says is attacker-reachable text, so:
  * it is pinned to one version, its configuration and every tool's description and schema are hashed when a person
  * first approves them and any change disables the tool until they approve again with the diff, descriptions and
  * results are scanned, and every tool defaults to `irreversible`, which always needs a human. A server's own claim

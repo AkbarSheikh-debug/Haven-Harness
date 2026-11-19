@@ -9,7 +9,7 @@ import type { BrokerContext, Route } from './server.ts';
 import type { Authenticated } from './tokens.ts';
 
 /**
- * Server-side tools. The credential for each one lives in the broker's memory only; the client sends
+ * Server-side tools (decision 6). The credential for each one lives in the broker's memory only; the client sends
  * a request, the broker checks the person's policy and token, and runs the call itself. A modified client can ask
  * for anything here and gets only what the policy allows. MCP servers are spoken to over HTTP with no client
  * capabilities declared, so sampling, elicitation and roots cannot be asked of anyone.
@@ -19,7 +19,7 @@ export interface ToolListing {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
-  /** Pushes to a protected ref need an approval first. */
+  /** Pushes to a protected ref need an approval first (Task 5). */
   readonly external: boolean;
 }
 

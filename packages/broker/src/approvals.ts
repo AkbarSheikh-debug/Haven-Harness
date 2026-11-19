@@ -5,7 +5,7 @@ import type { BrokerContext, Route } from './server.ts';
 import type { Authenticated } from './tokens.ts';
 
 /**
- * Approvals decided on the broker. An action that needs one (a push to a protected ref) becomes a
+ * Approvals decided on the broker (decision 7). An action that needs one (a push to a protected ref) becomes a
  * request bound to the requester and the exact action text, commit included. Who may decide it is read from the
  * requester's own policy, so a person cannot pick a looser approver; with `separate`, the requester cannot decide
  * their own. An approval is good for one use within an hour. Every request and decision is an audit row.

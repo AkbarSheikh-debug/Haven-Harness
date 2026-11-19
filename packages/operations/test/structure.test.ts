@@ -31,7 +31,7 @@ const STARTS_PROCESSES = /child_process|process\.binding|\bspawn(Sync)?\(|\bexec
 const offends = (file: string, text: string): boolean =>
   STARTS_PROCESSES.test(text) && !Object.keys(ALLOWED).some((prefix) => file.startsWith(`${prefix}/`));
 
-describe('where processes may start', () => {
+describe('where processes may start (invariant 14)', () => {
   it('uses child_process only in the places on the list', async () => {
     const offenders: string[] = [];
     for (const file of await sourceFiles()) if (offends(file, await readFile(join(packages, file), 'utf8'))) offenders.push(file);

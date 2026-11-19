@@ -11,7 +11,7 @@ export const SKILL_BODY_MAX_LINES = 500;
 export const CATALOGUE_MAX_CHARS = 8_000;
 const SKILL_FILE_MAX = 256 * 1024;
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
-/** `created_by`, `pinned` and `locked` are for the curator: only `created_by: agent` skills are ever moved. */
+/** `created_by`, `pinned` and `locked` are for the curator (10.7): only `created_by: agent` skills are ever moved. */
 const KNOWN_KEYS = new Set(['name', 'description', 'validate', 'created_by', 'pinned', 'locked']);
 /** Markdown links and images. The target is checked afterwards for being a local path. */
 const LINK = /!?\[[^\]\n]*\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
@@ -123,7 +123,7 @@ function lintMeta(folderName: string, meta: SkillMeta, body: string, errors: str
 }
 
 /**
- * A skill is three levels. Name and description (64 and 1,024 characters), a body
+ * Slide 21, the green side: a skill is three levels. Name and description (64 and 1,024 characters), a body
  * under 500 lines, and bundled files linked straight from SKILL.md. A bundled file that links on to another
  * local file is two levels down, and that is an error.
  */

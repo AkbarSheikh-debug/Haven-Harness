@@ -7,7 +7,7 @@ import { HnError } from '@hn/core';
 import type { EgressProxy } from './egress-proxy.ts';
 
 /**
- * Headless Chrome or Edge for the `browser` tool. Found by absolute path, never by name. A throwaway
+ * Headless Chrome or Edge for the `browser` tool (decision 8). Found by absolute path, never by name. A throwaway
  * profile, no extensions, no sync, no background requests. Every request goes through the harness egress proxy,
  * loopback included (Chrome sends loopback direct unless told not to), and the browser resolves no names itself, so
  * the proxy's checks cannot be stepped around. QUIC is off (it would not use the proxy) and WebRTC may not send UDP.

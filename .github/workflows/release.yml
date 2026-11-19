@@ -1,0 +1,160 @@
+name: release
+
+# A release is built from a tag `vX.Y.Z`. Six sandbox helpers are built (Windows, Linux and macOS, x64 and arm64),
+# hashed into a manifest, signed, and attached to a DRAFT release beside the npm package and its build provenance.
+# Nothing is published by this workflow until the owner publishes the draft. Signing needs the release key as the
+# RELEASE_SIGNING_KEY secret of the `release` environment; without it the run builds and says so, and signs nothing.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  helper:
+    name: hn-sandbox ${{ matrix.platform }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { platform: win32-x64, os: windows-latest, target: x86_64-pc-windows-msvc, exe: ".exe" }
+          - { platform: win32-arm64, os: windows-latest, target: aarch64-pc-windows-msvc, exe: ".exe" }
+          - { platform: linux-x64, os: ubuntu-latest, target: x86_64-unknown-linux-gnu, exe: "" }
+          - { platform: linux-arm64, os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, exe: "" }
+          - { platform: darwin-x64, os: macos-latest, target: x86_64-apple-darwin, exe: "" }
+          - { platform: darwin-arm64, os: macos-latest, target: aarch64-apple-darwin, exe: "" }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: The tag names the version in package.json
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "The tag ${GITHUB_REF_NAME} does not match package.json version ${version}." >&2
+            exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+      - name: Build the helper
+        shell: bash
+        run: |
+          rustup target add "${{ matrix.target }}"
+          cargo build --release --locked --target "${{ matrix.target }}" --manifest-path native/hn-sandbox/Cargo.toml
+          mkdir -p dist
+          cp "native/hn-sandbox/target/${{ matrix.target }}/release/hn-sandbox${{ matrix.exe }}" "dist/hn-sandbox-${VERSION}-${{ matrix.platform }}${{ matrix.exe }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: helper-${{ matrix.platform }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    name: sign, pack and draft
+    needs: helper
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The environment holds the signing key. Protect it with required reviewers in the repository settings.
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm typecheck
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: helper-*
+          path: dist
+          merge-multiple: true
+      - name: Sign the helpers and pack the npm package
+        shell: bash
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_KEY_ID: ${{ vars.RELEASE_KEY_ID }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+          if [ -z "${RELEASE_SIGNING_KEY}" ] || [ -z "${RELEASE_KEY_ID}" ]; then
+            echo "::warning::No RELEASE_SIGNING_KEY secret or RELEASE_KEY_ID variable: nothing is signed, so the draft holds the six helpers only. Sign them offline with scripts/sandbox-manifest.ts and scripts/pack-npm.ts."
+            echo "SIGNED=no" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          umask 077
+          keyfile="$(mktemp)"
+          printf '%s\n' "${RELEASE_SIGNING_KEY}" > "${keyfile}"
+          trap 'rm -f "${keyfile}"' EXIT
+          node --disable-proto=throw scripts/sandbox-manifest.ts --version "${version}" --binaries dist --key "${keyfile}" --key-id "${RELEASE_KEY_ID}" --out dist
+          node --disable-proto=throw scripts/pack-npm.ts --version "${version}" --key "${keyfile}" --key-id "${RELEASE_KEY_ID}" --out dist
+          echo "SIGNED=yes" >> "$GITHUB_ENV"
+      - name: Hash everything that is attached
+        shell: bash
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Create the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${VERSION}" --draft --verify-tag --title "Haven Harness ${VERSION}" --notes "Draft. Review the assets, then publish this release and run the publish step for npm." dist/*
+
+  smoke:
+    name: installed hn on ${{ matrix.os }}
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: dist
+      - name: Install the package with npm and check it
+        shell: bash
+        run: |
+          set -e
+          if ! ls dist/haven-harness-*.tgz > /dev/null 2>&1; then
+            echo "::warning::The release was not signed, so there is no package to install here."
+            exit 0
+          fi
+          npm install -g --foreground-scripts dist/haven-harness-*.tgz
+          hn --version
+          # The helper comes from the folder, through the same signature and hash checks as a download.
+          hn setup --from dist
+          hn doctor

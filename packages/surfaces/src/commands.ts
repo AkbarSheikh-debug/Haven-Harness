@@ -6,6 +6,7 @@ import { runFleetFile } from './fleet.ts';
 import { RateLimiter, rateLimitsFromEnv } from '@hn/delegate';
 import { spentTokens } from '@hn/loop';
 import { RALPH_DEFAULT_LAPS, RALPH_MAX_LAPS, runRalph } from '@hn/orchestrate';
+import { formatCostLine, sumJobCosts } from './cost-summary.ts';
 import { Harness } from './harness.ts';
 import { gatedCheck } from './root-tools.ts';
 
@@ -44,12 +45,14 @@ export async function runFleetCommand(context: SessionCommandContext): Promise<n
   });
   const counts = Object.entries(report.counts).filter(([, count]) => count > 0).map(([status, count]) => `${count} ${status}`).join(', ');
   context.out(`\n${report.results.length} jobs: ${counts}. ${report.tokens} tokens this run.${report.resumedFromFile > 0 ? ` ${report.resumedFromFile} were already done in the results file.` : ''}\n`);
+  const spent = sumJobCosts(report.results);
+  if (spent !== null) context.out(`${formatCostLine(spent)}\n`);
   for (const result of report.results) context.out(`${sanitizeForDisplay(`${result.name}: ${result.status}${result.sessionId === null ? '' : `, session ${result.sessionId}`}`)}\n`);
   return report.counts.done === report.results.length ? 0 : 1;
 }
 
 /**
- * The subcommands that are not a session of their own: `hn steer` and `hn stop`. Returns null when the
+ * The Phase 6 subcommands that are not a session of their own: `hn steer` and `hn stop`. Returns null when the
  * command line is not one of them.
  */
 export async function runControlCommand(context: CommandContext): Promise<number | null> {
@@ -70,7 +73,7 @@ export async function runControlCommand(context: CommandContext): Promise<number
 }
 
 /**
- * `hn ralph <prompt> [--check <command>] [--until <phrase>] [--max <laps>] [--allow <tools>]`: each lap
+ * `hn ralph <prompt> [--check <command>] [--until <phrase>] [--max <laps>] [--allow <tools>]` (decision 6): each lap
  * is a fresh root session in this folder, unattended (`dont-ask` with file edits unless --allow says otherwise), and
  * the check runs through that lap's own gated exec, so below tier 3 the loop stops as unchecked rather than run blind.
  */

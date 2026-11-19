@@ -5,7 +5,7 @@ import { bareRepoRoots, hostExecReasons, isSecretPath, summarizeDiff } from '@hn
 import type { SafeFiles } from './safe-files.ts';
 
 /**
- * Hand-back. The box works on a COPY of the project, never the host tree. When it is
+ * Hand-back (invariant 13). The box works on a COPY of the project, never the host tree. When it is
  * done, what it wrote is hostile output: a file in it can make the host run code the next time
  * anything touches it. So the copy is turned into a plan of whole files. Files on the host-exec
  * manifest need a human to see the diff and approve the exact content. Links, devices and files

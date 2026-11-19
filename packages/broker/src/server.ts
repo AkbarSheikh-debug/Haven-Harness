@@ -19,7 +19,7 @@ import { openBrokerAudit, type BrokerAuditSink } from './audit-sink.ts';
 import { openTeamMemory } from './team-memory.ts';
 
 /**
- * `hn broker`: one Node process holding everything a laptop must not hold. Each route authenticates
+ * `hn broker` (decision 1): one Node process holding everything a laptop must not hold. Each route authenticates
  * the token it is given, works out the person's policy from the signed tree, and decides on the server. Later
  * tasks add routes (server-side tools, approvals, audit anchors, memory) through `routes`, so this file stays
  * the core: login, session tokens, the policy and governed model calls.

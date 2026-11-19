@@ -40,7 +40,7 @@ describe('skill front matter', () => {
   });
 });
 
-describe('the skill linter', () => {
+describe('the skill linter (slide 21)', () => {
   it('passes a skill whose references link straight from SKILL.md', async () => {
     const text = skillMd('release', 'See [the reference](reference.md) and [docs](https://example.com).');
     const report = await lintSkill('release', text, files({ 'reference.md': 'Plain reference, no links.' }));

@@ -7,7 +7,7 @@ import { ToolProblem, stringArg, type ToolArgs, type ToolDefinition } from './ty
 import { wrapUntrusted } from './web-tools.ts';
 
 /**
- * Language servers. Servers come only from the user's `~/.hn/lsp.json`. A server runs project code, so
+ * Language servers (decision 6). Servers come only from the user's `~/.hn/lsp.json`. A server runs project code, so
  * starting one is a gated `lsp` call (a person approves it below tier 3), and it is started by the session's own process
  * operations, so in a box it runs in the box. What it says is derived from project files: `workspace` data.
  */

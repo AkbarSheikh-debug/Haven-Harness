@@ -2,7 +2,7 @@ import { createHash, createPublicKey, sign, verify, type KeyObject } from 'node:
 import { PolicyError, PolicySet, canonicalJson, parsePolicy, type Identity, type Policy } from './policy.ts';
 
 /**
- * The signed policy tree. One bundle holds every layer an organisation writes: the org layer,
+ * The signed policy tree (Phase 8, decision 4). One bundle holds every layer an organisation writes: the org layer,
  * a layer per OU path, per role and per person. The broker picks the ones that apply to an identity and every one
  * must allow, so a deeper OU, an extra role or a personal layer can only narrow. A role widens nothing by being
  * held; it matters only where a rule names it (for example, who may approve).

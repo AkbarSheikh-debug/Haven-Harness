@@ -4,7 +4,7 @@ import { canonicalJson } from '@hn/security';
 import { readTar, type TarFile } from './tar.ts';
 
 /**
- * The release manifest: every file in the archive with its SHA-256, signed with ed25519. The signature
+ * The release manifest (decision 11): every file in the archive with its SHA-256, signed with ed25519. The signature
  * travels beside the archive; the manifest travels inside it. A release is accepted only when the signature checks
  * against a key the installed copy pins, and the archive holds exactly the files the manifest names, byte for byte.
  */

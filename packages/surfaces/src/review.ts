@@ -9,7 +9,7 @@ import { isUntrusted } from '@hn/security';
 import { forkSession, parseLog } from '@hn/session';
 import { parseMemoryOps } from '@hn/tools';
 
-/** Background review runs after every this many user turns. */
+/** Background review runs after every this many user turns (section 4). */
 export const REVIEW_EVERY_TURNS = 10;
 const REVIEW_MAX_ITERATIONS = 16;
 const REVIEW_WALL_CLOCK_MS = 5 * 60_000;
@@ -53,7 +53,7 @@ function evidenceFrom(events: readonly SessionEvent[], sessionId: string): { ses
 
 /**
  * A dispatcher that offers the parent's exact tool list but runs only `memory`, and only into notes or
- * proposals: the gate for a system principal that may write proposals and nothing else.
+ * proposals: the gate for a system principal that may write proposals and nothing else (section 4).
  */
 function reviewDispatcher(options: ReviewerOptions, parentEvents: readonly SessionEvent[], parentId: string, counts: { notes: number; proposals: number }): ToolDispatcher {
   const now = options.now ?? (() => new Date());
@@ -94,7 +94,7 @@ function reviewDispatcher(options: ReviewerOptions, parentEvents: readonly Sessi
 }
 
 /**
- * Background review: a fork of the parent at its newest closed step, in its own log beside the
+ * Background review (section 4): a fork of the parent at its newest closed step, in its own log beside the
  * parent's, run for one harness-origin turn of at most 16 steps. The parent's log is read, never written.
  */
 export function createReviewer(options: ReviewerOptions): () => Promise<ReviewResult> {

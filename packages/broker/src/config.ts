@@ -34,7 +34,7 @@ export interface BrokerConfig {
   readonly policy: { readonly bundle: string; readonly keys: Readonly<Record<string, string>> };
   readonly upstreams: readonly Upstream[];
   readonly limits?: { readonly requestsPerMinute?: number; readonly loginHours?: number; readonly sessionMinutes?: number; readonly concurrent?: number };
-  /** Server-side tools: MCP servers over HTTP and git remotes, each with credentials only the broker holds. */
+  /** Server-side tools (decision 6): MCP servers over HTTP and git remotes, each with credentials only the broker holds. */
   readonly tools?: { readonly mcp?: readonly McpUpstream[]; readonly git?: readonly GitRemote[] };
   /** Credentials named in `tools`, taken from the broker's environment at start and removed from it. Never sent to a client. */
   readonly secrets: ReadonlyMap<string, string>;

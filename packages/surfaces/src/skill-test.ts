@@ -1,5 +1,5 @@
 /**
- * `/skill-test`: a fresh child that never saw the skill being written uses it on a real task and
+ * `/skill-test` (slide 24): a fresh child that never saw the skill being written uses it on a real task and
  * reports harshly. It knows only the skill's name and the task, so it reads the skill the way a stranger would.
  */
 export function skillTestBrief(skill: string, task: string): string {

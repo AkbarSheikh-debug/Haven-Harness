@@ -69,7 +69,7 @@ const grantBody = (over: Partial<GrantBody> = {}): GrantBody => ({
 
 const handoff = (grant: string) => JSON.stringify({ 'hn-handoff': 1, keys: {}, grant });
 
-describe('a granted child', () => {
+describe('a granted child (decision 1)', () => {
   it('runs in the granted mode with only the granted tools and the role prompt, and records its descriptor', { timeout: 60_000 }, async () => {
     await withTempDir(async (dir) => {
       const cwd = await realpath(dir);
@@ -115,7 +115,7 @@ describe('a granted child', () => {
   });
 });
 
-describe('approval routing', () => {
+describe('approval routing (decision 2)', () => {
   async function routedChild(answer: 'once' | 'deny') {
     return withTempDir(async (dir) => {
       const cwd = await realpath(dir);

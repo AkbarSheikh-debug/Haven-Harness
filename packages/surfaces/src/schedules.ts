@@ -24,7 +24,7 @@ export interface RunDueOptions {
   readonly keys: KeyStore;
   readonly env?: NodeJS.ProcessEnv;
   readonly now?: Date;
-  /** 600 s with nothing happening. Tests use less. */
+  /** Section 12: 600 s with nothing happening. Tests use less. */
   readonly idleMs?: number;
   /** Model settings for schedules that name none. */
   readonly defaults?: Pick<HarnessOptions, 'model' | 'baseUrl' | 'window'>;
@@ -38,7 +38,7 @@ async function storeFor(env?: NodeJS.ProcessEnv): Promise<{ store: ScheduleStore
 }
 
 /**
- * `hn schedule run-due`, which the OS scheduler calls: every due schedule runs once, one after another, as
+ * `hn schedule run-due`, which the OS scheduler calls (decision 5): every due schedule runs once, one after another, as
  * an unattended root session in its project: `dont-ask` with the allowlist shown when it was made, its prompt with the
  * origin of whoever wrote it (a model-written one is never `user`), stopped by the idle watchdog. Each occurrence is
  * marked as run before it starts, so a crash never makes it run twice. An entry that does not verify never runs.

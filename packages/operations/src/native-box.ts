@@ -8,7 +8,7 @@ import { wrapChild, type ProcessSignal, type RunningProcess, type StartOptions }
 import type { ExecOptions, ExecResult } from './types.ts';
 
 /**
- * The Windows native box. Every command is one `hn-sandbox run`: an AppContainer with no
+ * The Windows native box (decisions 1 and 2). Every command is one `hn-sandbox run`: an AppContainer with no
  * capabilities, in a Job Object that kills everything it started when the command ends. The box sees only its own
  * folder (the copy, a home and a temp) and system folders Windows opens to every app; it has no network.
  *

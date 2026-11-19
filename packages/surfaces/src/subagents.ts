@@ -10,6 +10,7 @@ import type { Gate, Mode, TrustStore } from '@hn/security';
 import { forkSession, lastForkBoundary, parseLog } from '@hn/session';
 import type { HookRunner, ToolDefinition } from '@hn/tools';
 import { safeInstructionReader, type InstructionApprover } from './instructions.ts';
+import { NO_ROUTING, loadRouting, type Routing, type RoutingContext } from './routing.ts';
 
 /** Where a session's children keep their logs: beside the parent's log, never inside another session's. */
 export function childrenFolder(sessions: string, workdir: string, parentId: string): string {
@@ -46,15 +47,20 @@ export function childArgs(input: ChildArgsInput): string[] {
 /**
  * Which model a role runs on: `main` is the parent's, `cheap` the route's cheap tier, anything else a model the policy
  * must allow. A local route serves whatever model it is given, with the window the session was started with.
+ * The person's routing (routing.ts) comes first: it can name a model for a role, and say which model `cheap` means.
+ * Either way the answer goes through the same policy check, and nothing falls back to another model.
  */
-export function modelResolver(input: { readonly cheap: string; readonly model: string; readonly cli: string; readonly caps: ModelCaps; readonly local: boolean; readonly allowed: (model: string) => boolean }): (role: Role) => ResolvedModel {
+export function modelResolver(input: { readonly cheap: string; readonly model: string; readonly cli: string; readonly caps: ModelCaps; readonly local: boolean; readonly allowed: (model: string) => boolean; readonly routing?: Routing }): (role: Role) => ResolvedModel {
   // A child is started with the model exactly as the parent was given it (`ollama/qwen3:14b`), or it would take another route.
   const ollama = input.cli.startsWith('ollama/');
+  const routing = input.routing ?? NO_ROUTING;
   return (role) => {
-    if (role.model === 'main') return { model: input.cli, caps: input.caps };
-    if (role.model === 'cheap') return input.cheap === input.model ? { model: input.cli, caps: input.caps } : { model: input.cheap, caps: resolveCaps(input.cheap) };
-    if (!input.allowed(role.model)) throw new DelegationRefused(`The policy does not allow the model ${role.model}, which the ${role.name} role names.`);
-    return { model: ollama && !role.model.startsWith('ollama/') ? `ollama/${role.model}` : role.model, caps: input.local ? input.caps : resolveCaps(role.model) };
+    const asked = routing.roles.get(role.name) ?? role.model;
+    const wanted = asked === 'cheap' && routing.cheap !== null ? routing.cheap : asked;
+    if (wanted === 'main') return { model: input.cli, caps: input.caps };
+    if (wanted === 'cheap') return input.cheap === input.model ? { model: input.cli, caps: input.caps } : { model: input.cheap, caps: resolveCaps(input.cheap) };
+    if (!input.allowed(wanted)) throw new DelegationRefused(`The policy does not allow the model ${wanted}, which the ${role.name} role is routed to.`);
+    return { model: ollama && !wanted.startsWith('ollama/') ? `ollama/${wanted}` : wanted, caps: input.local ? input.caps : resolveCaps(wanted) };
   };
 }
 
@@ -70,7 +76,7 @@ export interface SubagentSetup {
   readonly workdir: string;
   /**
    * Where a child works unless it has a clone: the project, or in a boxed session the box's copy of it, so a child's
-   * changes come back through the box's reviewed import like everything else the box wrote.
+   * changes come back through the box's reviewed import like everything else the box wrote (invariant 13).
    */
   readonly cwd?: string;
   readonly sessions: string;
@@ -103,7 +109,7 @@ export interface SubagentSetup {
   readonly workspaces?: Workspaces;
   /** Runs before a writer's work is applied to the project, with the files it changes: the checkpoint. */
   readonly beforeLand?: (files: readonly string[]) => Promise<void>;
-  /** Where team members' requests and inbox routes go, once a team exists. */
+  /** Where team members' requests and inbox routes go, once a team exists (11.5). */
   readonly teamHub?: { current: { memberRequest(name: string, request: Readonly<Record<string, unknown>>): Promise<unknown>; port(name: string, send: ((message: unknown) => void) | null): void } | null };
 }
 
@@ -146,7 +152,7 @@ export interface Subagents {
 
 /**
  * The parent's side of delegation: a manager whose launcher signs a grant, opens the private channel to this
- * session's gate and rate limiter, and starts the child as its own process.
+ * session's gate and rate limiter, and starts the child as its own process (slide 47).
  */
 export function createSubagents(setup: SubagentSetup): Subagents {
   const entry = fileURLToPath(new URL('./main.ts', import.meta.url));
@@ -254,14 +260,29 @@ export function createSubagents(setup: SubagentSetup): Subagents {
   return { manager, tools: [createSubagentTool(manager), ...createChildTools(manager)], ...(workspaces === undefined ? {} : { workspaces }) };
 }
 
-/** Roles from the user's and the project's agents folders. A project role nobody approved is offered on a card; without a person it stays out. */
-export async function openRoles(options: {
+export interface RoleOptions {
   readonly files: SafeFiles | null;
   readonly hnHome: string;
   readonly projectRoot: string;
   readonly trust: TrustStore;
   readonly approve?: InstructionApprover;
-}): Promise<{ readonly roles: readonly Role[]; readonly notes: readonly string[] }> {
+  /** Set for a session that delegates: the person's model routing is then loaded and checked. A child delegates nothing. */
+  readonly routing?: RoutingContext;
+}
+
+/**
+ * The roles, and the person's routing for them. The routing is checked against the roles that exist, so a role name
+ * that is a typo stops the session instead of doing nothing.
+ */
+export async function openRoles(options: RoleOptions): Promise<{ readonly roles: readonly Role[]; readonly notes: readonly string[]; readonly routing: Routing }> {
+  const set = await openRoleFiles(options);
+  if (options.routing === undefined) return { ...set, routing: NO_ROUTING };
+  const loaded = await loadRouting(options.hnHome, set.roles.map((role) => role.name), options.routing);
+  return { roles: set.roles, notes: [...set.notes, ...loaded.notes], routing: loaded.routing };
+}
+
+/** Roles from the user's and the project's agents folders. A project role nobody approved is offered on a card; without a person it stays out. */
+async function openRoleFiles(options: RoleOptions): Promise<{ readonly roles: readonly Role[]; readonly notes: readonly string[] }> {
   if (options.files === null) return { roles: BUILT_IN_ROLES, notes: [] };
   const roots = {
     user: join(options.hnHome, 'agents'),

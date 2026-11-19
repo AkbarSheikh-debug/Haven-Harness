@@ -1,3 +1,4 @@
+import { isAbsolute, relative, resolve } from 'node:path';
 import { isSecretPath } from '@hn/security';
 import { describeOutput } from './job-tools.ts';
 import { waitFor, type JobManager } from './jobs.ts';
@@ -145,7 +146,7 @@ function grepTool(): ToolDefinition {
       type: 'object',
       properties: {
         pattern: { type: 'string' },
-        path: { type: 'string', description: 'Folder to search, relative to the project.' },
+        path: { type: 'string', description: 'Folder or file to search: relative to the project, or an absolute path inside it.' },
         glob: { type: 'string', description: 'Only search matching files, such as *.ts.' },
         ignore_case: { type: 'boolean' },
       },
@@ -176,8 +177,19 @@ function grepTool(): ToolDefinition {
   };
 }
 
+/**
+ * Where a search starts. A path under the project, or an absolute path inside it, which is how a task names its files
+ * (`/app/logs`): it used to be glued on as `<root>//app/logs`, which does not exist, so `list_files /app` failed on a
+ * folder that is the project (found on Linux in a benchmark; `read_file` resolved absolute paths itself and worked).
+ * The gate has already judged the path; this checks again that what it resolves to is inside the project, so the tool
+ * never depends on that alone.
+ */
 function join(root: string, path: string): string {
-  return path === '.' ? root : `${root}/${path}`;
+  if (path === '.') return root;
+  const full = resolve(root, path);
+  const inside = relative(root, full);
+  if (inside.startsWith('..') || isAbsolute(inside)) throw new ToolProblem('OUTSIDE_PROJECT', 'That path is outside the project.');
+  return full;
 }
 
 function listTool(): ToolDefinition {
@@ -187,7 +199,7 @@ function listTool(): ToolDefinition {
     parameters: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Folder to list, relative to the project.' },
+        path: { type: 'string', description: 'Folder or file to list: relative to the project, or an absolute path inside it.' },
         glob: { type: 'string' },
       },
       additionalProperties: false,

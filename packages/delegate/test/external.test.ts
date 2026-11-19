@@ -36,7 +36,7 @@ function dispatcherFor(root: string, mode: string, agent: ExternalAgent, approve
 const call = { id: 'x1', name: 'external_agent', args: { agent: 'fake-claude', task: 'refactor everything' } };
 const exists = (path: string) => readFile(path).then(() => true, () => false);
 
-describe('external providers', () => {
+describe('external providers (decision 5)', () => {
   it('attack: external_provider_refused_in_yolo (refused before any card, and the program never runs)', async () => {
     await withTempDir(async (dir) => {
       const { root, canary, agent } = await fixture(dir);

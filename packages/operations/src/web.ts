@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { EgressPolicy, blockedAddress, checkUrl, type UrlOptions } from '@hn/security';
 
 /**
- * `web_fetch`. One hop runs in a separate process that holds no credentials and no state. It checks the
+ * `web_fetch` (8.8.5). One hop runs in a separate process that holds no credentials and no state. It checks the
  * URL before resolving anything, refuses if any answer is in a blocked range, and connects to exactly the address
  * it checked, so a name that changes its answer between the check and the connection cannot redirect it. The
  * parent loops over the hops, so every redirect goes back through the full egress policy.

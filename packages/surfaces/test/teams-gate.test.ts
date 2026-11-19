@@ -17,7 +17,18 @@ const shared = (name: string) => Number(name.slice(1)) > 12;
 
 let inboxHeld: (() => void) | null = null;
 
-describe('agent teams through the real stack', () => {
+/**
+ * Every member waits at its first model call until all sixteen exist. A member's clone is made from the current main
+ * when it is added, so without this a fast member could merge before a later one is cloned, and the later one would
+ * start from the merged main and never conflict. The gate counts three conflicts, which holds only when m13 to m16 all
+ * start from the same base.
+ */
+let startAll: () => void = () => undefined;
+const allAdded = new Promise<void>((resolve) => {
+  startAll = resolve;
+});
+
+describe('agent teams through the real stack (exit gate 5b)', () => {
   let model: FakeOpenAI;
   before(async () => {
     model = await startFakeOpenAI(async (request) => {
@@ -35,6 +46,7 @@ describe('agent teams through the real stack', () => {
         }
         return { text: 'done' };
       }
+      if (tools === 0) await allAdded;
       const file = shared(name) ? 'shared.txt' : `${name}.txt`;
       const steps = shared(name)
         ? [{ name: 'team_task', args: { action: 'claim', id, revision: 1 } }, { name: 'read_file', args: { path: 'shared.txt' } }, { name: 'write_file', args: { path: file, content: `line one\n${name} was here\n` } }, { name: 'team_task', args: { action: 'complete', id, revision: 2 } }]
@@ -44,6 +56,7 @@ describe('agent teams through the real stack', () => {
     });
   });
   after(async () => {
+    startAll();
     inboxHeld?.();
     await model.close();
   });
@@ -70,6 +83,7 @@ describe('agent teams through the real stack', () => {
         for (const name of MEMBERS) team.apply(LEAD, { kind: 'create', title: `work for ${name}` }, 'model-derived');
         const began = Date.now();
         for (const [index, name] of MEMBERS.entries()) await team.addMember(name, `You are member ${name}. Claim task t${index + 1}, do its work in your folder, then complete it.`);
+        startAll();
         assert.equal(await team.idle(540_000), true);
         t.diagnostic(`16 members ran and merged in ${Math.round((Date.now() - began) / 1000)} s`);
         const merges = session.agent.events.filter((event) => event.type === 'team/merge' && event.data['kind'] !== 'start');

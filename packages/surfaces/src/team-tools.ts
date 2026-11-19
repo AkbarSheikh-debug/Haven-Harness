@@ -7,7 +7,7 @@ import { wrapUntrusted, type ToolDefinition } from '@hn/tools';
 import { teamToken, type TeamLogin } from './team.ts';
 
 /**
- * The broker's server-side tools in a team session. Each is a deferred tool of the session, so the
+ * The broker's server-side tools in a team session (decision 6). Each is a deferred tool of the session, so the
  * local gate sees it like any other (all are `external`: a person approves them below dont-ask), and the broker
  * decides again on every call, so a client that skips its gate still gets only what policy allows. MCP results are
  * `mcp` data in the untrusted wrapper. `git_push` sends a bundle of the project's HEAD; the broker pushes it.
@@ -43,8 +43,8 @@ async function bundleHead(root: string): Promise<string> {
 }
 
 /**
- * Team memory. Searching returns only what the broker lets this person read, as untrusted data: another
- * person's words are not instructions. Saving always needs a person's yes, and the session's taint
+ * Team memory (slide 37). Searching returns only what the broker lets this person read, as untrusted data: another
+ * person's words are not instructions. Saving always needs a person's yes (invariant 11), and the session's taint
  * goes with it, so the broker keeps anything learned from untrusted text to its writer alone.
  */
 function teamMemoryTools(login: TeamLogin, session: string): ToolDefinition[] {

@@ -8,14 +8,14 @@ import { runFleetFile } from '@hn/surfaces';
 import { withTempDir } from '@hn/testkit';
 
 /**
- * The fleet against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running; HN_LIVE_MODEL picks the model, default
+ * Phase 6 against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running; HN_LIVE_MODEL picks the model, default
  * ollama/qwen3:14b; HN_LIVE_RECORD a file for the record). Safety holds by assertion; what the model did is recorded,
  * and each job's outcome is judged by a hidden check the test runs itself, as the task suite does.
  */
 const LIVE = process.env['HN_LIVE_OLLAMA'] === '1';
 const MODEL = process.env['HN_LIVE_MODEL'] ?? 'ollama/qwen3:14b';
 
-describe('fleet live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
+describe('Phase 6 live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
   it('a three-job fleet runs each job in its own folder, unattended, and the results file is complete', { timeout: 1_800_000 }, async () => {
     await withTempDir(async (dir) => {
       const root = await realpath(dir);

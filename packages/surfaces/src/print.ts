@@ -1,4 +1,5 @@
 import { sanitizeForDisplay } from '@hn/core';
+import { costReport } from '@hn/delegate';
 import type { TurnEnd, TurnResult } from '@hn/loop';
 import { costOf, type KeyStore } from '@hn/provider';
 import type { Approver } from '@hn/security';
@@ -63,14 +64,16 @@ export async function runPrint(options: PrintOptions, keys: KeyStore, write = (t
   });
   try {
     const session = await harness.open();
-    // A headless run waits for its background children, then gives the model one more turn to use
+    // A headless run waits for its background children (section 11.2), then gives the model one more turn to use
     // their reports. Children still running at the deadline are stopped, and their logs say so.
     const { sessionId: _id, ...result } = await harness.run(prompt, { waitForChildrenMs: CHILD_WAIT_MS });
+    // What the whole family cost, by role and model, from the log (Phase 10): `result.usage` is only this turn's own.
+    const cost = costReport(session.agent.events);
     // Nobody is here to approve anything, so a box's changes on the host-exec manifest are held back, never applied.
     const handback = await harness.close();
     if (json) {
       const summary = handback === null ? {} : { handback: { applied: handback.result.applied, held: handback.result.blocked, notImported: handback.plan.skipped } };
-      write(`${JSON.stringify({ sessionId: session.sessionId, ...result, text: sanitizeForDisplay(result.text), ...summary })}\n`);
+      write(`${JSON.stringify({ sessionId: session.sessionId, ...result, text: sanitizeForDisplay(result.text), cost, ...summary })}\n`);
     } else {
       write('\n');
       if (result.detail !== undefined) process.stderr.write(`${sanitizeForDisplay(result.detail)}\n`);

@@ -21,13 +21,13 @@ export function formatDream(report: DreamReport, dryRun: boolean): string {
 }
 
 /**
- * `hn dream [--dry-run]`: one sweep for the project in the current folder, by hand. It opens no
+ * `hn dream [--dry-run]` (decision 4): one sweep for the project in the current folder, by hand. It opens no
  * session, so it leaves no session log behind. The dreamer has no tools and uses the summary route.
  */
 export async function runDreamCommand(options: CliOptions & { readonly dryRun: boolean }, keys: KeyStore): Promise<number> {
   const paths = resolvePaths(options.env);
   const memory = memoryPaths(paths.home, options.workdir);
-  // Memory gates: a policy can keep the dreamer away from this person's sessions.
+  // Memory gates (slide 37): a policy can keep the dreamer away from this person's sessions.
   if (!(await sessionPolicy(options, paths.home, `dream-${process.pid}`)).policy.dreamAllowed()) {
     process.stdout.write('The policy does not allow dreaming over these sessions.\n');
     return 0;

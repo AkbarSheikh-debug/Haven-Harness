@@ -12,7 +12,7 @@ import {
 } from '@hn/memory';
 
 /**
- * Poisoned-memory attacks are blocked. One test per way text from outside a person could
+ * Exit gate, condition 1: poisoned-memory attacks are blocked. One test per way text from outside a person could
  * try to become memory. Each plants a canary and checks the effect: the canary never reaches what a later
  * session loads, recalls or stores as long-term memory. Pass is judged by the canary, never by model text.
  */

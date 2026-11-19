@@ -61,7 +61,7 @@ export interface FlushInput {
 }
 
 /**
- * The compaction flush: before rows are folded away, what matters in them goes to today's
+ * The compaction flush (10.5): before rows are folded away, what matters in them goes to today's
  * note. Every line takes the worst origin of the rows (a line cannot say which row it came from),
  * so a flush over a web page writes a `web` line, which never loads on its own. Each line is
  * written alone, so one the scan refuses does not take the others with it. Returns lines written.

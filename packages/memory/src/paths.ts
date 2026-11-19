@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { projectKey } from '@hn/config';
 
 /**
- * Where memory lives: under the harness home, never in the repo, because a
+ * Where memory lives (Phase 4 decision 2): under the harness home, never in the repo, because a
  * repo file is text anyone with commit access can write. `USER.md` is one per user; everything
  * else is one per project, so a coffee site and a snake game do not share a brain.
  */

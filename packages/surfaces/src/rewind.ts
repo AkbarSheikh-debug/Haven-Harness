@@ -46,7 +46,7 @@ export interface RewindPlan {
 }
 
 /**
- * Plans `/rewind` to just before turn `turn`. The boundary is the newest closed step before that turn. Files go
+ * Plans `/rewind` to just before turn `turn` (11.7). The boundary is the newest closed step before that turn. Files go
  * back to the checkpoint taken right before the first change after it, and only when that checkpoint really is the
  * state at the boundary: checkpoints are coalesced, and a near miss would silently restore the wrong state.
  */

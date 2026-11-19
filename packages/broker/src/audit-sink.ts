@@ -7,7 +7,7 @@ import type { Route } from './server.ts';
 import { writeAtomic } from './ledger.ts';
 
 /**
- * The broker's audit. Every decision is a row in the broker's own keyed hash chain, on the broker's
+ * The broker's audit (decision 8). Every decision is a row in the broker's own keyed hash chain, on the broker's
  * disk. Rows are also shipped to a SIEM as OTLP/HTTP JSON logs, each carrying its number, the previous row's MAC and
  * its own, so whoever holds the broker's audit key can check the shipped copy row by row.
  *

@@ -59,7 +59,7 @@ const read: GateCall = { ...edit, tool: 'read_file', effect: 'observe', paths: [
 const shell = (command: string): GateCall => ({ ...edit, tool: 'bash', effect: 'execution', paths: [], command, summary: command });
 
 describe('modes', () => {
-  it('refuses modes this gate does not run', () => {
+  it('refuses modes that need Phase 2', () => {
     for (const mode of ['yolo', 'smart', 'anything']) assert.throws(() => harness(mode), UnsupportedModeError);
   });
 

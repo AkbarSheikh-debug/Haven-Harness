@@ -41,7 +41,7 @@ const sh = (command: string, effect: Effect = 'execution'): GateCall => call({ t
 const kind = async (gate: Gate, c: GateCall): Promise<string> => (await gate.check(c)).kind;
 
 describe('mode by tier: which modes may run where', () => {
-  it('lists every mode', () => {
+  it('lists every mode the plan names', () => {
     assert.deepEqual([...MODES], ['read-only', 'plan', 'safe', 'accept-edits', 'smart', 'dont-ask', 'yolo']);
   });
 

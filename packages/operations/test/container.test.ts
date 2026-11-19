@@ -38,7 +38,7 @@ describe('the container run arguments', () => {
   const has = (...flags: string[]): boolean => flags.every((flag, i) => args.includes(flag) && (i === 0 || args.indexOf(flag) > args.indexOf(flags[i - 1] as string) - 1));
   const after = (flag: string): string | undefined => args[args.indexOf(flag) + 1];
 
-  it('asks for every confinement a box needs', () => {
+  it('asks for every confinement the box needs', () => {
     assert.equal(after('--network'), 'none');
     assert.ok(args.includes('--read-only'));
     assert.equal(after('--user'), boxUser());

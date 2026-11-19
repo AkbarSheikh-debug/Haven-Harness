@@ -4,7 +4,7 @@ import { connect, isIP, type Socket } from 'node:net';
 import { blockedAddress, checkUrl } from '@hn/security';
 
 /**
- * The browser's only way out. Every request the browser makes, for the page and for everything the page
+ * The browser's only way out (decision 8). Every request the browser makes, for the page and for everything the page
  * asks for, comes here first: an https tunnel (CONNECT) or a plain http request. The name is checked before it is
  * resolved, resolved here (not by the browser), every address it resolves to must be public, and the connection goes to
  * the address that was checked, so a name cannot be re-pointed at this machine between the check and the connection.

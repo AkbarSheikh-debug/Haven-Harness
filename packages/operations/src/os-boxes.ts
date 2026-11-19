@@ -1,5 +1,5 @@
 /**
- * Native boxes on Linux and macOS: the command lines only. Neither is claimed as a tier by building it:
+ * Native boxes on Linux and macOS (decision 4): the command lines only. Neither is claimed as a tier by building it:
  * like every box, it counts only after the outside-in check passes on that machine, and that has not been run here.
  * Not built: a Landlock ruleset and a seccomp filter on Linux, which need a helper of their own.
  */

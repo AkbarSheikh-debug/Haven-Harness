@@ -374,7 +374,7 @@ describe('which model a child is started with', () => {
 });
 
 describe('where a child works', () => {
-  it('works in the session cwd (a box copy) while its log is filed under the parent project', { timeout: 120_000 }, async () => {
+  it('works in the session cwd (a box copy) while its log is filed under the parent project (invariant 13)', { timeout: 120_000 }, async () => {
     const { mkdir } = await import('node:fs/promises');
     const { RateLimiter } = await import('@hn/delegate');
     const { Gate, Jail } = await import('@hn/security');

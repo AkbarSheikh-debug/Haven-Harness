@@ -133,7 +133,7 @@ export interface LoopConfig {
    */
   readonly tokenBudget?: number;
   /**
-   * `fresh` counts only tokens that were not cache reads, as fleet jobs do: otherwise a 600k budget is
+   * `fresh` counts only tokens that were not cache reads, as fleet jobs do (section 4): otherwise a 600k budget is
    * about six laps at 100k of mostly cached context. Default `all`.
    */
   readonly tokenBudgetCounts?: 'all' | 'fresh';

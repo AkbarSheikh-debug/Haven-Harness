@@ -8,6 +8,7 @@ const REDACTED = '[REDACTED]';
 
 /**
  * Takes keys out of the environment at startup, so no child process can inherit them.
+ * This is the Phase 1 store. The OS keychain replaces it in Phase 2.
  */
 export class KeyStore {
   #keys = new Map<KeyName, string>();

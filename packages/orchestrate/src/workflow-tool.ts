@@ -6,7 +6,7 @@ import { runWorkflow, type RunnerChannel, type WorkflowHandlers, type WorkflowLi
 export const MAX_SCRIPT_CHARS = 32_000;
 
 /**
- * Workflow children take leases from their own pool, queued in-process, so a busy run waits for a lease and
+ * Workflow children take leases from their own pool (11.4), queued in-process, so a busy run waits for a lease and
  * capacity is never a silent null. Separate from the eight subagent slots.
  */
 export class LeasePool {
@@ -82,7 +82,7 @@ function describe(result: WorkflowRun): { content: string; isError: boolean } {
 const origin = (result: WorkflowRun): Exclude<Origin, 'user' | 'human-selected'> => (result.origin === 'user' || result.origin === 'human-selected' ? 'model-derived' : result.origin);
 
 /**
- * `workflow` and `run_code`. Both refuse below tier 3. Every sub-call passes the gate as the same call from the
+ * `workflow` and `run_code` (11.4). Both refuse below tier 3. Every sub-call passes the gate as the same call from the
  * model would; the script itself is shown to the person as the card when the mode asks.
  */
 export function createWorkflowTools(options: WorkflowToolOptions): ToolDefinition[] {

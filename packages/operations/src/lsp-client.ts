@@ -4,7 +4,7 @@ import type { RunningProcess } from './processes.ts';
 /**
  * A Language Server Protocol client over a running process's standard streams (Content-Length framing, JSON-RPC 2.0).
  * The process is started by the session's own process operations, so in a box the server runs in the box. The server
- * runs project code, so starting it is a gated call made by the caller, not here.
+ * runs project code (invariant 14), so starting it is a gated call made by the caller, not here.
  */
 
 export interface LspPosition {

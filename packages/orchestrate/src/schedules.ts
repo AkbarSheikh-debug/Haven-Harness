@@ -8,7 +8,7 @@ export const MAX_SCHEDULES = 100;
 export const MAX_SCHEDULE_PROMPT = 8_000;
 /** A missed run inside this window runs once when hn next looks; older ones are skipped and noted. */
 export const DEFAULT_CATCH_UP_MS = 6 * 60 * 60_000;
-/** A scheduled run is stopped after this long with nothing happening, measured as idle, not wall clock. */
+/** Section 12: a scheduled run is stopped after this long with nothing happening, measured as idle, not wall clock. */
 export const SCHEDULE_IDLE_MS = 600_000;
 const STORE_VERSION = 1;
 const LOCK_STALE_MS = 10 * 60_000;
@@ -69,7 +69,7 @@ export function scheduleProblem(schedule: Schedule): string | null {
 export const newScheduleId = (): string => randomBytes(5).toString('hex');
 
 /**
- * The schedules, in one user-level file, every entry HMACed with the log key, so an entry written by
+ * The schedules, in one user-level file (decision 5), every entry HMACed with the log key, so an entry written by
  * anything but hn (a tool's shell, a planted file) does not verify and never runs. Writes are atomic and under a lock.
  */
 export class ScheduleStore {

@@ -4,7 +4,7 @@ import { lintSkill, parseSkill } from '@hn/context';
 import { scanThreat, type ThreatVerdict } from '@hn/security';
 import { readOrNull } from './disk.ts';
 
-/** House standards for a learned skill. */
+/** House standards for a learned skill (10.6). */
 export const LEARN = {
   descriptionMax: 60,
   sections: ['When to Use', 'Prerequisites', 'How to Run', 'Quick Reference', 'Procedure', 'Pitfalls', 'Verification'],
@@ -64,7 +64,7 @@ export interface LearnCheck {
 }
 
 /**
- * Everything a learned skill must pass before it is even quarantined: the skill linter, the house
+ * Everything a learned skill must pass before it is even quarantined: the Phase 3 linter, the house
  * standards, no flag the source does not show, and the strict scan.
  */
 export async function checkLearned(files: ReadonlyMap<string, string>, sourceText: string, scan?: (texts: readonly string[]) => Promise<ThreatVerdict>): Promise<LearnCheck> {

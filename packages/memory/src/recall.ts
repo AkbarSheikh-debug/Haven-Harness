@@ -3,7 +3,7 @@ import type { Origin } from '@hn/core';
 import { scanThreat, type ThreatVerdict } from '@hn/security';
 import type { Chunk, MemoryHit, MemoryIndex } from './search.ts';
 
-/** At most 800 tokens per turn, counted as four characters each. */
+/** At most 800 tokens per turn (10.4), counted as four characters each. */
 export const RECALL_MAX_CHARS = 3_200;
 
 const NEVER: ReadonlySet<Origin> = new Set(['web', 'mcp', 'child', 'event', 'ipc']);
@@ -11,7 +11,7 @@ const PLAIN: ReadonlySet<Origin> = new Set(['user', 'human-selected', 'harness']
 
 /**
  * What recall may even consider: daily notes only (USER.md and MEMORY.md are already in the
- * snapshot), and never a chunk holding a web, MCP, child or tainted-session line.
+ * snapshot), and never a chunk holding a web, MCP, child or tainted-session line (8.4).
  */
 export function recallAllows(chunk: Chunk): boolean {
   return !chunk.evergreen && !NEVER.has(chunk.origin) && chunk.taint === 'clean';

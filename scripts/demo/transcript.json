@@ -1,0 +1,133 @@
+{
+ "recorded": "a real hn run in a verified Windows box, with a scripted model",
+ "events": [
+  {
+   "kind": "out",
+   "text": "Sandboxed: a verified Windows box (tier 3, shell: powershell), working on a copy. Changes come back when you /exit.\nmode safe, model demo. /exit to leave, /stop to stop a turn, /rollback to undo, /checkpoints to list, /implement <task> to delegate, /agents to list children.\n"
+  },
+  {
+   "kind": "out",
+   "text": "hn> "
+  },
+  {
+   "kind": "out",
+   "text": "\n[dream] Dream finished. 0 themes, 0 past the gates, 0 model calls.\n"
+  },
+  {
+   "kind": "in",
+   "text": "make the failing test in test.ps1 pass"
+  },
+  {
+   "kind": "out",
+   "text": "I will read the code first."
+  },
+  {
+   "kind": "out",
+   "text": "\n[read_file]\n"
+  },
+  {
+   "kind": "out",
+   "text": "\n[edit_file]\n"
+  },
+  {
+   "kind": "out",
+   "text": "\n▌ hn approval: edit_file (reversible, 59 bytes)\n▌ | edit calc.ps1\n▌ | --- old\n▌ | return $a - $b\n▌ | +++ new\n▌ | return $a + $b\n▌ Allow? [y]es once, [s]ession, [N]o: "
+  },
+  {
+   "kind": "in",
+   "text": "y"
+  },
+  {
+   "kind": "out",
+   "text": "\n[bash]\n"
+  },
+  {
+   "kind": "out",
+   "text": "\n▌ hn approval: bash (execution, 60 bytes)\n▌ | powershell -NoProfile -ExecutionPolicy Bypass -File test.ps1\n▌ Allow? [y]es once, [N]o: "
+  },
+  {
+   "kind": "in",
+   "text": "y"
+  },
+  {
+   "kind": "out",
+   "text": "The bug was a minus where a plus belongs, in calc.ps1. In the box the test now says: ok: Add-Numbers 2 3 = 5"
+  },
+  {
+   "kind": "out",
+   "text": "\n[done] 4 steps, 400 in, 40 out, 0% cached\n"
+  },
+  {
+   "kind": "out",
+   "text": "context ~110 of 32,000 tokens, folds when full (sawtooth)\n"
+  },
+  {
+   "kind": "out",
+   "text": "hn> "
+  },
+  {
+   "kind": "in",
+   "text": "now show me ../outside/secret.txt"
+  },
+  {
+   "kind": "out",
+   "text": "\n[read_file]\n"
+  },
+  {
+   "kind": "out",
+   "text": "I could not read it. hn answered: Blocked: ~/demo\\outside\\secret.txt is outside the project."
+  },
+  {
+   "kind": "out",
+   "text": "\n[done] 2 steps, 200 in, 20 out, 0% cached\n"
+  },
+  {
+   "kind": "out",
+   "text": "context ~110 of 32,000 tokens, folds when full (sawtooth)\n"
+  },
+  {
+   "kind": "out",
+   "text": "hn> "
+  },
+  {
+   "kind": "in",
+   "text": "try it from the shell"
+  },
+  {
+   "kind": "out",
+   "text": "\n[bash]\n"
+  },
+  {
+   "kind": "out",
+   "text": "\n▌ hn approval: bash (execution, 80 bytes)\n▌ | Get-Content '~/demo\\outside\\secret.txt'\n▌ Allow? [y]es once, [N]o: "
+  },
+  {
+   "kind": "in",
+   "text": "y"
+  },
+  {
+   "kind": "out",
+   "text": "From inside the box the host's file is out of reach: Get-Content : Access is denied"
+  },
+  {
+   "kind": "out",
+   "text": "\n[done] 2 steps, 200 in, 20 out, 0% cached\n"
+  },
+  {
+   "kind": "out",
+   "text": "context ~110 of 32,000 tokens, folds when full (sawtooth)\n"
+  },
+  {
+   "kind": "out",
+   "text": "hn> "
+  },
+  {
+   "kind": "in",
+   "text": "/exit"
+  },
+  {
+   "kind": "out",
+   "text": "\nBrought back 1 file(s) to your project.\n\nResume with: hn --resume 3f2a9c1e-7b64-4d0a-9e51-0c8d2b6a47f3\n"
+  }
+ ]
+}

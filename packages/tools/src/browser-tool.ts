@@ -4,7 +4,7 @@ import { ToolProblem, stringArg, type ToolArgs, type ToolDefinition } from './ty
 import { wrapUntrusted } from './web-tools.ts';
 
 /**
- * `browser`: a headless browser for pages that need one. It is external, like `web_fetch`, and every
+ * `browser` (decision 8): a headless browser for pages that need one. It is external, like `web_fetch`, and every
  * request it makes goes through the harness egress proxy, so a page cannot reach this machine, a private network or a
  * metadata address, however it asks (images, frames, scripts, redirects). Under the Rule of Two the gate has already
  * shown the exact URL to a person; then only that URL's host is reachable, so a page cannot carry data anywhere else.

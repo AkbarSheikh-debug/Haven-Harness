@@ -8,8 +8,8 @@ import { Harness, type HarnessOptions } from './harness.ts';
 import { APP_CSS, APP_JS, APP_PAGE, LOGIN_PAGE, SECURITY_HEADERS, renderMarkdown } from './serve-render.ts';
 
 /**
- * `hn serve`: one session in a browser, hardened as a local web door must be.
- * - Loopback only; there is no option for anything else (remote use would need real authentication).
+ * `hn serve` (decision 12, section 8.8.11): one session in a browser, hardened as a local web door must be.
+ * - Loopback only; there is no option for anything else (remote use needs real authentication: Phase 8).
  * - Every request's Host must be exactly this server's loopback name and port, which stops DNS rebinding; every request
  *   that carries an Origin must be this server's own, and every POST must carry one.
  * - A random token, shown on the terminal, is typed into a login form and exchanged for an HttpOnly, SameSite=Strict

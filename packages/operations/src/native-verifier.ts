@@ -5,7 +5,7 @@ import { nativeReportProblems, powershellPath, type NativeReport, type RunOutcom
 import { hostAddresses, type NonceSinks, type SinkHit } from './verifier.ts';
 
 /**
- * The outside-in check for the Windows native box. Nothing the box prints clears it. What clears it:
+ * The outside-in check for the Windows native box (decision 3). Nothing the box prints clears it. What clears it:
  * - the token and job the helper read back from Windows (AppContainer, no capabilities, low integrity, kill on close);
  * - host listeners on every address that saw no connection or packet from the box;
  * - a nonce file outside the box that the box could not read, and a file outside the box it could not create;
@@ -164,5 +164,5 @@ export async function verifyNativeTier(box: NativeVerifiable, sinks: NonceSinks,
   return { real: evidence.length === 0, evidence, hits, selfReported, report: outcome?.report ?? null, attempts, unchecked: UNCHECKED };
 }
 
-/** The tier a verified native box earns: tier 3. Anything unverified is no boundary. */
+/** The tier a verified native box earns: tier 3 (section 8.1). Anything unverified is no boundary. */
 export const nativeTierOf = (report: NativeTierReport): number => (report.real ? 3 : 2);

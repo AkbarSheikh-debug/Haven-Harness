@@ -105,7 +105,7 @@ export interface RalphToolOptions {
   readonly runLap: (prompt: string, signal: AbortSignal) => Promise<RalphLapOutcome>;
   /** The check, as a gated call through the session's `HarnessExec`. */
   readonly runCheck: (command: string, signal: AbortSignal) => Promise<RalphCheck>;
-  /** True once the session has seen untrusted data: then every ralph call needs a person. */
+  /** True once the session has seen untrusted data: then every ralph call needs a person (section 8.4). */
   readonly tainted: () => boolean;
   /** The strict scan, for a prompt from a tainted session. Null when clean, else the reason. */
   readonly scan: (text: string) => Promise<string | null>;

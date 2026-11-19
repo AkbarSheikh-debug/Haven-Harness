@@ -29,7 +29,7 @@ function pair(token: string, approve: (card: ApprovalCard) => Promise<'once' | '
   return { channel: new ParentChannel(token, port), dropped, close: () => closers.forEach((close) => close()) };
 }
 
-describe('the child channel', () => {
+describe('the child channel (decision 2)', () => {
   it('carries a card to the parent and the answer back, and never lets a child remember a yes', async () => {
     const seen: ApprovalCard[] = [];
     const { channel } = pair(newChannelToken(), async (shown) => (seen.push(shown), 'once'));

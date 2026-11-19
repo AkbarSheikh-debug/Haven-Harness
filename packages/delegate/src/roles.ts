@@ -34,7 +34,7 @@ function builtIn(role: Omit<Role, 'scope' | 'hash'>): Role {
   return { ...role, scope: 'built-in', hash: createHash('sha256').update(JSON.stringify(role)).digest('hex') };
 }
 
-/** The built-in crew. */
+/** The crew from section 11.2. */
 export const BUILT_IN_ROLES: readonly Role[] = [
   builtIn({
     name: 'scout',
@@ -142,7 +142,7 @@ async function listRoleFiles(directory: string): Promise<string[]> {
 
 /**
  * Roles from the user's and the project's agents folders, after the built-in crew. A role's body sits in a child's
- * system prompt for its whole life, so it gets the strict scan. The built-in crew cannot be replaced,
+ * system prompt for its whole life, so it gets the strict scan (invariant 10). The built-in crew cannot be replaced,
  * and a project role is offered on a card first; without a person it stays out.
  */
 export async function loadRoles(options: RoleRoots): Promise<RoleSet> {

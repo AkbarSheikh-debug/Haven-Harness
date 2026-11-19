@@ -14,7 +14,7 @@ import { MemoryDoor, openSession } from '@hn/surfaces';
 import { withTempDir } from '@hn/testkit';
 
 /**
- * A week of simulated days through the real session stack. A fake OpenAI-compatible model plays a
+ * Decision 5: a week of simulated days through the real session stack. A fake OpenAI-compatible model plays a
  * gullible agent: it does what the user asks, and also what a hostile README asks. Each day has three turns,
  * a dream at night and the morning cards; the clock memory reads is moved day by day.
  */
@@ -91,7 +91,7 @@ after(() => {
   server.close();
 });
 
-describe('a week of simulated days', () => {
+describe('a week of simulated days (decision 5)', () => {
   it('remembers what the user asked and what kept coming back, and nothing an attacker planted', { timeout: 600_000 }, async () => {
     await withTempDir(async (dir) => {
       const root = join(await realpath(dir), 'project');

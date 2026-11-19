@@ -62,7 +62,7 @@ export interface CuratorInput {
 }
 
 /**
- * The curator. Only skills that say `created_by: agent` are touched, and never a pinned or locked
+ * The curator (10.7). Only skills that say `created_by: agent` are touched, and never a pinned or locked
  * one. Unused for 30 days: marked stale. For 90: moved to `.archive/`, from where `restoreArchived`
  * brings it back. Nothing is ever deleted. "A learning loop without a curator is a hoarding loop."
  */

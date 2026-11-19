@@ -7,8 +7,8 @@ import type { TeamLogin } from './team.ts';
 import { LspManager, createBrowserTool, createLspTool, createRepoMapTool, lspConfigPath, parseLspConfig, type HarnessExec, type ToolDefinition } from '@hn/tools';
 
 /**
- * The code and web tools for a session, in one place so `session.ts` stays a list of sockets: the repo map, the LSP
- * and the browser tools. Each is deferred, so the prompt's `tools` array does not change.
+ * Phase 7's tools for a session, in one place so `session.ts` stays a list of sockets: the repo map, and (as their tasks
+ * land) the LSP and browser tools. Each is deferred, so the prompt's `tools` array does not change.
  */
 
 export interface EdgeToolOptions {
@@ -25,7 +25,7 @@ export interface EdgeToolOptions {
   readonly shell: 'bash' | 'powershell' | 'posix';
   /** The session's notes for the person, such as a config file that was not used. */
   readonly notes?: string[];
-  /** Team mode: the broker's server-side tools for this person. */
+  /** Team mode: the broker's server-side tools for this person (Phase 8). */
   readonly team?: { readonly login: TeamLogin; readonly session: string };
 }
 

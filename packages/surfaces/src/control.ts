@@ -49,7 +49,7 @@ async function privateFolder(path: string): Promise<void> {
 }
 
 /**
- * The control channel: how another process steers, stops or asks about a running session. Separate from
+ * The control channel (section 11.6): how another process steers, stops or asks about a running session. Separate from
  * the session lock. A Windows named pipe or a Unix socket in a 0700 folder, both with a random name, and a 32-byte
  * token. A message without the token is dropped, logged and its connection closed, and nothing is said back.
  */

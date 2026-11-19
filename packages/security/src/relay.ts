@@ -12,7 +12,7 @@ export interface RelayContext {
 }
 
 /**
- * Shows a child's card to this session's person, labelled with the child. The guardian never
+ * Shows a child's card to this session's person (Phase 5 decision 2), labelled with the child. The guardian never
  * decides it, a yes counts once, and with nobody here or in a mode that never asks, the answer is no. Every card is
  * an asked and decided pair in the audit chain, with the child it came from.
  */

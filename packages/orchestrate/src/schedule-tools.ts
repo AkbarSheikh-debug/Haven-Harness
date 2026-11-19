@@ -14,7 +14,7 @@ export interface ScheduleToolsOptions {
   readonly worst: () => Origin;
   /**
    * Null when a person approves each card and so picks the allowlist; otherwise the most a schedule made here may allow,
-   * so an unattended session can never schedule a run that does more than it may.
+   * so an unattended session can never schedule a run that does more than it may (invariant 4).
    */
   readonly allowCeiling: () => readonly string[] | null;
   /** The strict scan, for a prompt written in a tainted session. */
@@ -44,7 +44,7 @@ function describe(fields: { name: string; rrule: string; prompt: string; allow: 
 /**
  * `schedule_create`, `schedule_edit`, `schedule_list`, `schedule_view` and `schedule_delete` (deferred, root sessions only;
  * grants keep them from children). A schedule is persistence: from a tainted session, creating or changing one needs a
- * person in every mode and its prompt gets the strict scan (`tainted_schedule_requires_human`).
+ * person in every mode and its prompt gets the strict scan (section 8.4, `tainted_schedule_requires_human`).
  */
 export function createScheduleTools(options: ScheduleToolsOptions): ToolDefinition[] {
   const now = (): Date => options.now?.() ?? new Date();

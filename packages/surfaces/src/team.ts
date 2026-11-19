@@ -6,7 +6,7 @@ import { createBrokerProvider, type ModelProvider } from '@hn/provider';
 import { PolicySet, layersFor, loadLocalPolicy, verifyPolicyTree, type AuditEntry, type AuditFile, type Identity, type PolicySeen } from '@hn/security';
 
 /**
- * Team mode on the laptop. `hn login <broker>` runs the device flow through the broker and keeps a login
+ * Team mode on the laptop (Phase 8). `hn login <broker>` runs the device flow through the broker and keeps a login
  * token in `~/.hn/team.json`; a session started with `--team` asks the broker for a token of its own, sends every
  * model call there, and applies the signed policy tree to its local gate as well. Locally the tree is advisory,
  * like any policy file; what binds is the broker, which decides again on every call.

@@ -13,9 +13,9 @@ export interface MemoryFrame {
 export interface MemoryHooks {
   /** The frozen snapshot for this process. The same frame every time it is asked. */
   snapshot(): Promise<MemoryFrame>;
-  /** Relevant recall for one user turn: chunks matching what the user typed, or null. */
+  /** Relevant recall for one user turn (10.4): chunks matching what the user typed, or null. */
   recall?(query: string, visible: readonly SessionEvent[], signal: AbortSignal): Promise<MemoryFrame | null>;
-  /** Before a summary fold: append what matters from these rows to the daily note. */
+  /** Before a summary fold: append what matters from these rows to the daily note (10.5). */
   flush?(rows: readonly SessionEvent[], signal: AbortSignal): Promise<void>;
 }
 
@@ -43,7 +43,7 @@ export async function ensureMemory(config: LoopConfig, log: LiveLog): Promise<vo
 }
 
 /**
- * Relevant recall: once per user turn, the user's own words are the query and what matches
+ * Relevant recall (10.4): once per user turn, the user's own words are the query and what matches
  * arrives as one row right after their message, so the cached prefix never changes. Recall is a
  * help, never a reason for a turn to fail, so any error leaves the turn as it was.
  */

@@ -45,7 +45,7 @@ export interface ValidateMessage {
 }
 
 /**
- * The feedback-loop body shape: once a skill with `validate:` is loaded, its command runs after
+ * The feedback-loop body shape (slide 22): once a skill with `validate:` is loaded, its command runs after
  * every round that changed something, until it passes or three runs are spent. Each run is a gated
  * `HarnessExec` call bound to the command and to SKILL.md's hash, so below tier 3 a person approves each one,
  * and editing the skill voids any approval.

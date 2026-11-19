@@ -4,7 +4,7 @@ import { Redactor, join as joinOrigins, scanThreat, sentinelWriteProblem, type T
 import { atomicWrite, dropHistory, listHistory, pushHistory, readHistory, readOrNull, removeIfPresent, withLock } from './disk.ts';
 import { DELIMITER, body, entriesFromMarkdown, hashText, parseSidecar, render, type MemoryEntry, type MemoryScope, type Sidecar, type Writer } from './record.ts';
 
-/** Characters each file may hold. Daily notes are written freely and tail-capped at load; their cap only bounds the file. */
+/** Characters each file may hold (10.2). Daily notes are written freely and tail-capped at load; their cap only bounds the file. */
 export const CAPS: Readonly<Record<MemoryScope, number>> = { user: 1_375, project: 2_200, daily: 65_536 };
 const HISTORY_LIMIT = 100;
 

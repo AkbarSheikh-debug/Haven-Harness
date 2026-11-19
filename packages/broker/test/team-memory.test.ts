@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import { layersFor, parsePolicyTree } from '@hn/security';
 import { baseTree, startTeam, type Team } from './fixture.ts';
 
-/** Memory gates, against the broker over raw HTTP, as a client that ignores every local rule would send. */
+/** Memory gates (slide 37), against the broker over raw HTTP, as a client that ignores every local rule would send. */
 
 const tree = baseTree({
   org: { version: 1, name: 'org', models: { allow: ['team-*'] }, memory: { share: ['user', 'ou', 'role'], maxDays: 30 } },

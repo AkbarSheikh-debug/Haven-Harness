@@ -7,3 +7,5 @@ coverage/
 .hn/sessions/
 # Benchmark task workspaces hold .log files on purpose.
 !packages/evals/terminal-bench/**/environment/workspace/**/*.log
+__pycache__/
+*.pyc

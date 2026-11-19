@@ -9,7 +9,7 @@ import { MemoryFile } from './memory-file.ts';
 import { dayOf, type MemoryPaths } from './paths.ts';
 import { PROPOSAL_TTL_MS, appendProposal, newProposalId, pendingProposals, proposalHash, readAnswers, type Evidence, type Proposal, type ProposalKind } from './proposals.ts';
 
-/** Source constants. */
+/** Source constants (10.8). */
 export const DREAM = {
   minScore: 0.75,
   minRecalls: 3,
@@ -55,7 +55,7 @@ export function similarity(a: Set<string>, b: Set<string>): number {
 /**
  * LIGHT: rows and counted queries from this project's verified session logs (not children's) and its
  * daily notes, newer than 30 days. Only qualifying rows come back, so nothing else can reach the prompt:
- * promotion works per row, not per session.
+ * promotion works per row, not per session (10.8).
  */
 export async function collectRows(paths: MemoryPaths, sessionLogs: string, key: Buffer, now: Date): Promise<{ rows: DreamRow[]; queries: CountedQuery[] }> {
   const since = now.getTime() - DREAM.maxAgeDays * DAY;
@@ -189,7 +189,7 @@ async function lastRun(paths: MemoryPaths): Promise<Date | null> {
   }
 }
 
-/** Due when 23:00 local time has passed since the last sweep (catch-up on the next launch). */
+/** Decision 4: due when 23:00 local time has passed since the last sweep (catch-up on the next launch). */
 export async function dreamDue(paths: MemoryPaths, now: Date): Promise<boolean> {
   const last = await lastRun(paths);
   const eleven = new Date(now);
@@ -219,7 +219,7 @@ export interface DreamReport {
 }
 
 /**
- * One sweep: LIGHT, REM, DEEP. It reads only, and writes only `proposals.jsonl`, the diary in
+ * One sweep (10.8): LIGHT, REM, DEEP. It reads only, and writes only `proposals.jsonl`, the diary in
  * DREAMS.md and its own run time. MEMORY.md is not touched; a person's yes on a card does that. A dry
  * run asks no model and writes nothing.
  */

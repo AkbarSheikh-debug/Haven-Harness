@@ -1,5 +1,5 @@
 /**
- * Supply-chain checks on the agent itself. The lockfile must pin every package by an
+ * Supply-chain checks on the agent itself (decision 13, 8.8.12). The lockfile must pin every package by an
  * integrity hash, and a package version must have been public for a while before it is used (the release-age
  * delay pnpm also enforces at install), so a freshly hijacked release cannot reach a build the same day.
  */

@@ -14,7 +14,7 @@ type Take = (childId: string, role: string) => number;
 type Give = (childId: string) => void;
 
 /**
- * Starts children for one root session. It decides only what the caps decide: which role,
+ * Starts children for one root session (section 11.2). It decides only what the plan's caps decide: which role,
  * how narrow, how much budget, whether there is a slot. Everything a child does passes the child's own gate, and
  * only its report comes back, as `child` data. Children are durable: each has its own log, can be woken with a
  * new message, stopped, and listed, and a crash of either side is repaired from the logs.
@@ -83,7 +83,7 @@ export class SubagentManager {
     return budget;
   }
 
-  /** Validates a request against the model's capabilities and the caps before any process starts. */
+  /** Validates a request against the model's capabilities and the plan's caps before any process starts. */
   plan(task: TaskRequest, request: RunRequest): Planned {
     const role = this.role(task.agent);
     const brief = task.task.trim();
@@ -253,7 +253,7 @@ export class SubagentManager {
     const planned = tasks.map((task) => this.plan(task, request));
     const width = Math.min(this.limits.maxConcurrency, planned.length);
     const extra = request.callId === undefined ? {} : { callId: request.callId };
-    // Writers never share a checkout: each gets a private clone, or the call is refused before anything starts.
+    // Writers never share a checkout (section 11.2): each gets a private clone, or the call is refused before anything starts.
     const writes = (task: Planned): boolean => task.mode !== 'read-only';
     const isolate = planned.length > 1 && planned.some(writes);
     if (isolate) {

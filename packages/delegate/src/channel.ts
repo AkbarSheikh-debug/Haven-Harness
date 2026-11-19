@@ -3,7 +3,7 @@ import type { ApprovalAnswer, ApprovalCard, Effect } from '@hn/security';
 import type { RateGate } from './rate-limit.ts';
 
 /**
- * The private channel between a parent and one child: Node's IPC pipe, with every message carrying a
+ * The private channel between a parent and one child (decision 2): Node's IPC pipe, with every message carrying a
  * per-child token that only the two of them hold. The parent treats every message as hostile: a wrong token, an
  * unknown kind or a malformed field is dropped, and a request that cannot be answered is answered no.
  */

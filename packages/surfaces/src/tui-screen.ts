@@ -1,10 +1,10 @@
 import { sanitizeForDisplay } from '@hn/core';
 
 /**
- * The full-screen TUI's two pure parts: reading keys and drawing the screen. Kept apart from the terminal
+ * The full-screen TUI's two pure parts (decision 13): reading keys and drawing the screen. Kept apart from the terminal
  * so both are tested as plain functions.
  *
- * Two rules hold here. Every escape sequence the terminal sends is a key or nothing, never typed text, so a
+ * Two rules from the plan hold here. Every escape sequence the terminal sends is a key or nothing, never typed text, so a
  * terminal's reply (a cursor report, a colour answer) cannot become an answer to an approval. And only the harness draws
  * with colour: model text passes `sanitizeForDisplay`, which removes every escape, so the reverse-video frame of a card
  * is a style model content cannot produce.

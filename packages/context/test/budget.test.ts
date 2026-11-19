@@ -9,7 +9,7 @@ import {
   WindowTooSmallError,
 } from '@hn/context';
 
-/** The five rows of the compaction table. "k" is 1,000. */
+/** The five rows of the table in section 9.3. "k" is 1,000. */
 const GOLDEN = [
   { window: 200_000, output: 32_000, trigger: 102_464, keep: 26_880 },
   { window: 1_000_000, output: 32_000, trigger: 800_000, keep: 154_880 },

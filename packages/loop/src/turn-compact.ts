@@ -203,7 +203,7 @@ async function fold(ctx: CompactContext, reason: CompactReason, staticOnly: bool
   }
   const middle = surface.filter((row) => middleSeqs.has(row.seq));
   if (middle.length === 0) return { outcome: changed ? 'pruned' : 'noop', detail: {} };
-  // Before these rows go, what matters in them reaches today's note. Not when a guard forced a fast fold, and a
+  // Before these rows go, what matters in them reaches today's note (10.5). Not when a guard forced a fast fold, and a
   // failed flush never stops the fold.
   if (!staticOnly && reason !== 'overflow' && config.memory?.flush !== undefined) await config.memory.flush(middle, ctx.signal).catch(() => undefined);
 

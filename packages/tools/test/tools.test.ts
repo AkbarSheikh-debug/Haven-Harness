@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { ToolDispatcher, ToolOutcome } from '@hn/loop';
 import { localOperations } from '@hn/operations';
 import { Gate, Jail, type Approver } from '@hn/security';
-import { MAX_INLINE_CHARS, createDispatcher, decodeText, encodeText, type ToolDefinition } from '@hn/tools';
+import { MAX_INLINE_CHARS, createDispatcher, createShellTools, decodeText, encodeText, type ToolDefinition } from '@hn/tools';
 import { withTempDir } from '@hn/testkit';
 
 interface Kit {
@@ -263,6 +263,73 @@ describe('grep and list_files', () => {
       assert.match(result.content, /api\.js:1:export function createUser/);
       assert.doesNotMatch(result.content, /other\.js/);
       assert.match((await call('list_files', { path: 'src/api.js' })).content, /api\.js/);
+    });
+  });
+
+  it('take an absolute path to the project folder or inside it, as a task names it (found on Linux in a benchmark: list_files /app failed)', async () => {
+    await withTempDir(async (dir) => {
+      await mkdir(join(dir, 'src'));
+      await writeFile(join(dir, 'top.txt'), 'needle at the top\n');
+      await writeFile(join(dir, 'src', 'api.js'), 'needle in src\n');
+      const { call } = await kit(dir);
+      for (const root of [dir, `${dir}/`, `${dir}${process.platform === 'win32' ? '\\' : '/'}.`]) {
+        const list = await call('list_files', { path: root });
+        assert.equal(list.isError, false, `${root}: ${list.content}`);
+        assert.match(list.content, /top\.txt/);
+        assert.match(list.content, /api\.js/);
+        const found = await call('grep', { pattern: 'needle', path: root });
+        assert.equal(found.isError, false, `${root}: ${found.content}`);
+        assert.match(found.content, /top\.txt:1:needle at the top/);
+      }
+      const inside = join(dir, 'src');
+      assert.match((await call('list_files', { path: inside })).content, /api\.js/);
+      assert.doesNotMatch((await call('list_files', { path: inside })).content, /top\.txt/, 'a folder inside lists only itself');
+      assert.match((await call('grep', { pattern: 'needle', path: join(inside, 'api.js') })).content, /api\.js:1:needle in src/);
+      assert.match((await call('grep', { pattern: 'needle', path: 'src' })).content, /api\.js:1:needle in src/, 'a relative path still works');
+    });
+  });
+
+  it('attack: the search tools refuse a path outside the project themselves, without relying on the gate', async () => {
+    await withTempDir(async (dir) => {
+      const project = join(dir, 'project');
+      const sibling = join(dir, 'sibling');
+      await mkdir(project);
+      await mkdir(sibling);
+      await writeFile(join(sibling, 'entry-7f3a.txt'), 'LEAKED-CONTENT-7f3a\n');
+      const ops = localOperations(join(dir, 'spill'));
+      const [, grep, list] = createShellTools() as [ToolDefinition, ToolDefinition, ToolDefinition];
+      // The tools are called directly, so the gate and the jail never see these paths: whether they stay inside is
+      // decided by the tools alone.
+      const outside = [sibling, join(project, '..', 'sibling'), `${project}-other`, '../sibling', join(sibling, 'entry-7f3a.txt')];
+      if (process.platform === 'win32') outside.push(`${project.startsWith('D:') ? 'C:' : 'D:'}\\somewhere`);
+      for (const path of outside) {
+        await assert.rejects(list.execute({ path }, { workdir: project, ops } as never), /outside the project/, `list_files ${path}`);
+        await assert.rejects(grep.execute({ pattern: 'LEAKED', path }, { workdir: project, ops } as never), /outside the project/, `grep ${path}`);
+      }
+      // And a path that is inside still works through the same call.
+      const fine = await list.execute({ path: project }, { workdir: project, ops } as never);
+      assert.equal(fine.isError ?? false, false);
+    });
+  });
+
+  it('attack: an absolute path outside the project is still refused, and lists nothing of it', async () => {
+    await withTempDir(async (dir) => {
+      const project = join(dir, 'project');
+      const sibling = join(dir, 'sibling');
+      await mkdir(project);
+      await mkdir(sibling);
+      await writeFile(join(sibling, 'entry-7f3a.txt'), 'LEAKED-CONTENT-7f3a\n');
+      const { call } = await kit(project);
+      // A refusal names the path that was asked for, so what must be absent is what lives there: the entries of a
+      // folder, and the contents of a file.
+      for (const path of [sibling, join(project, '..', 'sibling'), join(sibling, 'entry-7f3a.txt')]) {
+        for (const result of [await call('list_files', { path }), await call('grep', { pattern: 'LEAKED', path })]) {
+          assert.equal(result.isError, true, `${path} was not refused: ${result.content}`);
+          assert.doesNotMatch(result.content, /LEAKED-CONTENT-7f3a/);
+        }
+        assert.doesNotMatch((await call('list_files', { path: path === join(sibling, 'entry-7f3a.txt') ? sibling : path })).content, /entry-7f3a\.txt\s*$/m, 'no entry of the outside folder is listed');
+      }
+      assert.equal((await call('list_files', { path: `${project}-other` })).isError, true, 'a folder that only shares the prefix is outside too');
     });
   });
 

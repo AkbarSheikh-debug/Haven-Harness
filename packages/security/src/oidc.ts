@@ -3,7 +3,7 @@ import { HnError } from '@hn/core';
 import type { Identity } from './policy.ts';
 
 /**
- * Checking an OpenID Connect ID token. Only the broker calls this: it is the relying party,
+ * Checking an OpenID Connect ID token (decision 2 of Phase 8). Only the broker calls this: it is the relying party,
  * and the token never reaches the laptop. Everything a token says about itself is distrusted until its signature is
  * checked against a key the issuer published, so the header can name an algorithm but cannot choose one: only the
  * three on the list are accepted, each only with the key type it needs, and `none` or a shared-secret algorithm

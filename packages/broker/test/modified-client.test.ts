@@ -10,7 +10,7 @@ import { makeSigningKey, signJwt, type FakeOpenAIReply } from '@hn/testkit';
 import { UPSTREAM_KEY, baseTree, startTeam, type Team } from './fixture.ts';
 
 /**
- * Model access, credentials and server-side tools are governed against a modified client.
+ * The Phase 8 exit gate: model access, credentials and server-side tools are governed against a modified client.
  * Every attack here is a client that ignores every local rule and speaks raw HTTP to the broker, so the only thing
  * that can stop it is the broker. Pass means the effect did not happen, checked on the far side (upstream request
  * counts, the remote repository, the audit chain), never by the broker's own word.
@@ -50,7 +50,7 @@ const requestId = (text: string): string => {
   return id;
 };
 
-describe('a modified client against the broker', () => {
+describe('Phase 8 exit gate: a modified client against the broker', () => {
   it('attack: modified_client_cannot_reach_denied_model (an intern asks for a model the policy denies them; upstream is never called)', async () => {
     await withTeam(async (team) => {
       const intern = await team.login({ email: 'in@example.com', department: 'eng', groups: ['intern'] });

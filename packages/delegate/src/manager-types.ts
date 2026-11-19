@@ -4,7 +4,7 @@ import type { Mode } from '@hn/security';
 import type { ChildReport, ChildRun } from './report.ts';
 import type { Role } from './roles.ts';
 
-/** The limits on children. Every one is a cap, and a request past a cap is refused, never queued. */
+/** Section 11.2's numbers. Every one is a cap, and a request past a cap is refused, never queued. */
 export interface DelegationLimits {
   /** 1: a child cannot start children. 0 turns delegation off. */
   readonly maxDepth: number;
@@ -68,7 +68,7 @@ export interface ResolvedModel {
   readonly caps: ModelCaps;
 }
 
-/** Private clones for parallel writers. Without them, parallel children may only read. */
+/** Private clones for parallel writers (decision 3 of Phase 5). Without them, parallel children may only read. */
 export interface WorkspaceHooks {
   /** Null when parallel writers can run here; otherwise why not. */
   check(): Promise<string | null>;
@@ -116,7 +116,7 @@ export interface RunRequest {
   readonly workdir?: string | null;
   /** The parent's tool call that started this, so repair can find the child after a crash. */
   readonly callId?: string;
-  /** Start the child as this team member. */
+  /** Start the child as this team member (11.5). */
   readonly team?: string;
 }
 

@@ -1,4 +1,4 @@
-// The workflow runner. Plain JavaScript, so it runs on any Node inside a box image. It runs a script in
+// The workflow runner (section 11.4). Plain JavaScript, so it runs on any Node inside a box image. It runs a script in
 // an empty vm context and asks its parent for everything else: agents, tools, logs. The vm is not the boundary (the
 // box is), so this file never touches the network, files or processes itself; it only reads stdin and writes stdout.
 //

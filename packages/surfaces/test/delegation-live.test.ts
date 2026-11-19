@@ -10,7 +10,7 @@ import { openSession, runPreset } from '@hn/surfaces';
 import { withTempDir } from '@hn/testkit';
 
 /**
- * Delegation against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running; HN_LIVE_MODEL picks the model, default
+ * Phase 5 against a real local model (opt-in: HN_LIVE_OLLAMA=1, Ollama running; HN_LIVE_MODEL picks the model, default
  * ollama/qwen3:14b; HN_LIVE_RECORD a file for the record). Safety holds by assertion; what the model chose to do is
  * recorded, because a small model varies.
  */
@@ -31,7 +31,7 @@ async function childLogsVerify(home: string, root: string, parent: string): Prom
   return { verified, total: names.length };
 }
 
-describe('delegation live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
+describe('Phase 5 live, on a local model', { skip: LIVE ? false : 'set HN_LIVE_OLLAMA=1 with Ollama running' }, () => {
   it('/implement in safe: scout, planner and worker as real processes, the worker edit approved through routing', { timeout: 1_800_000 }, async () => {
     await withTempDir(async (dir) => {
       const root = await realpath(dir);

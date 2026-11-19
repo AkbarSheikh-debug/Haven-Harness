@@ -4,7 +4,7 @@ import { dirname, join, normalize, relative, sep } from 'node:path';
 import { isSecretPath } from '@hn/security';
 
 /**
- * Building a project's image without trusting the project. The Dockerfile is project-written, so it is
+ * Building a project's image (decision 9) without trusting the project. The Dockerfile is project-written, so it is
  * read, not obeyed: every base image must be pinned by digest, a `# syntax=` frontend only from Docker's own image and
  * pinned, no remote ADD, no secret or ssh mounts, no network flag on RUN. The build context is never the project
  * folder: the harness copies only the files the Dockerfile's COPY and ADD name, and never a secret, `.git` or a link.

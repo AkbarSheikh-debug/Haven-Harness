@@ -4,7 +4,7 @@ import type { PolicySet } from '@hn/security';
 import { globMatch, type Upstream } from './config.ts';
 
 /**
- * A governed model call. The client sends a provider-neutral request; the broker decides whether this
+ * A governed model call (decision 5). The client sends a provider-neutral request; the broker decides whether this
  * person may use this model today, removes tools the policy denies them from what goes upstream, calls the model
  * with a key the client never sees, and removes any call to a denied tool from the reply, so a client that
  * ignores its own gate still never receives one. What arrives is untrusted input and is checked field by field.

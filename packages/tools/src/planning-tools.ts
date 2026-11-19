@@ -187,7 +187,7 @@ function parseQuestion(args: ToolArgs): Question | string {
 
 /**
  * `ask_user_question`. A pick among options the model wrote is `human-selected`, never `user`: the person chose,
- * but the words are the model's. Only text the person typed comes back as `user`.
+ * but the words are the model's (invariant 15). Only text the person typed comes back as `user`.
  */
 function askUserQuestion(options: PlanningOptions): ToolDefinition {
   const option = { type: 'object', properties: { label: { type: 'string' }, description: { type: 'string' } }, required: ['label'] };

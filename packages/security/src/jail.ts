@@ -29,7 +29,7 @@ function rejectWindowsTricks(input: string): void {
 /**
  * Keeps a path inside the project: attach it, clean it, resolve links, then check it
  * is still inside. This checks then opens, so a racing local process could swap a link
- * in between. The safe file helper (`hn-sandbox`) closes that gap.
+ * in between. Phase 2's helper closes that gap.
  */
 export class Jail {
   readonly #root: string;

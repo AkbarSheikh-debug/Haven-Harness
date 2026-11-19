@@ -7,7 +7,7 @@ import { Harness, type HarnessOptions } from './harness.ts';
 import { JsonRpcPeer, RPC_INVALID_PARAMS, RPC_METHOD_NOT_FOUND, RPC_REFUSED, RpcError, type RpcParams } from './jsonrpc.ts';
 
 /**
- * The Agent Client Protocol door (`hn acp`): ACP v1, JSON-RPC over stdio, for editors. The editor that
+ * The Agent Client Protocol door (`hn acp`, decision 11): ACP v1, JSON-RPC over stdio, for editors. The editor that
  * started the process is the person at this door, so its prompts are `user`. Every approval card becomes a
  * `session/request_permission` offering only "allow once" and "reject once": a remembered "always" would outlive what
  * the person saw. MCP servers an editor sends are not connected (MCP comes from the user's own file), and the session

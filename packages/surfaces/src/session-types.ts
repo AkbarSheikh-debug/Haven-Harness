@@ -33,6 +33,8 @@ export interface CliOptions {
   readonly sandbox?: SandboxOptions;
   /** An operator's claim of an outer boundary. Capped at dont-ask, never counts for yolo. */
   readonly externalSandbox?: boolean;
+  /** hn runs inside a benchmark container that is its only boundary. Narrower than the claim above, checked, and capped the same way. */
+  readonly benchmarkContainer?: boolean;
   /** Reviews calls in `smart` mode. */
   readonly guardian?: Guardian;
   /** A search provider. Without one there is no `web_search` tool. */
@@ -113,7 +115,7 @@ export interface OpenSession {
   readonly review: (() => Promise<ReviewResult>) | null;
   readonly memoryPaths: import('@hn/memory').MemoryPaths | null;
   readonly dream: ((dryRun: boolean) => Promise<import('@hn/memory').DreamReport>) | null;
-  /** Memory gates: false when the policy keeps /learn away from this person's sessions. */
+  /** Memory gates (slide 37): false when the policy keeps /learn away from this person's sessions. */
   readonly learnAllowed?: boolean;
   runChild(brief: string, signal: AbortSignal): Promise<{ readonly content: string; readonly isError: boolean }>;
   /** `/handoff`: drafts `## Context` and `## Task` from this session with one tool-less call. */

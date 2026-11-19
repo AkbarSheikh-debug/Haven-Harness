@@ -1,7 +1,7 @@
 /**
  * These rules match strings, so they are a seatbelt and not a boundary: `python -c`,
- * base64 and `find -delete` all get past them. The command parser does better, and the sandbox is
- * the actual boundary.
+ * base64 and `find -delete` all get past them. Real command parsing arrives in Phase 2,
+ * and the sandbox is the actual boundary.
  */
 
 const RM_COMMAND = /\brm\s+((?:-\S+\s+)+)(?:--\s+)?(\S+)/gi;

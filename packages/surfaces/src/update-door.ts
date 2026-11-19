@@ -5,7 +5,7 @@ import { installRelease } from '@hn/release';
 import { loadOrCreateLogKey } from '@hn/session';
 
 /**
- * `hn update <archive or https URL> [--sig file]`. Only a person at a terminal starts it: the main door
+ * `hn update <archive or https URL> [--sig file]` (decision 12). Only a person at a terminal starts it: the main door
  * refuses it inside a session, and nothing in a project's files can name an update source. The keys it trusts are
  * the ones pinned in the release that is running, never ones the new archive brings.
  */
