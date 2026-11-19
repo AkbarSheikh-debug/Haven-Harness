@@ -98,9 +98,10 @@ export class Agent {
   /** Takes the lock, loads the log and closes anything a crash left open, all before the first turn. */
   static async open(options: OpenAgentOptions): Promise<Agent> {
     const lock = await acquireSessionLock({ sessionId: options.sessionId, lockDir: options.lockDir });
+    let writer: SessionWriter | undefined;
     try {
       const events = await readEvents(options.path, options.key);
-      const writer = await SessionWriter.open({
+      writer = await SessionWriter.open({
         path: options.path,
         sessionId: options.sessionId,
         key: options.key,
@@ -117,6 +118,8 @@ export class Agent {
       await agent.#log.flush();
       return agent;
     } catch (error) {
+      // A refused session (a bad config, a failed repair) must not leave its log file open.
+      await writer?.close().catch(() => undefined);
       await lock.release();
       throw error;
     }
