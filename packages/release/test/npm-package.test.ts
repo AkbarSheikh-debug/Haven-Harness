@@ -161,7 +161,9 @@ describe('the npm package', { skip: offline ? 'HN_OFFLINE=1' : false, timeout: 9
         assert.match(setup.stdout, /fetching hn-sandbox 0\.9\.0/);
         assert.match(setup.stdout, /is ready and verified/);
         // A file of the installed package edited after install is reported by the real command.
-        const victim = join(prefix, 'node_modules', 'haven-harness', 'node_modules', '@hn', 'security', 'src', 'index.js');
+        // npm puts a global package in <prefix>/node_modules on Windows and in <prefix>/lib/node_modules everywhere else.
+        const installedRoot = process.platform === 'win32' ? join(prefix, 'node_modules', 'haven-harness') : join(prefix, 'lib', 'node_modules', 'haven-harness');
+        const victim = join(installedRoot, 'node_modules', '@hn', 'security', 'src', 'index.js');
         const original = await readFile(victim);
         await writeFile(victim, Buffer.concat([original, Buffer.from('\n// edited\n')]));
         const tampered = await exec(['doctor']).catch((error: { stdout: string }) => error);
