@@ -267,7 +267,9 @@ describe('grep and list_files', () => {
   });
 
   it('take an absolute path to the project folder or inside it, as a task names it (found on Linux in a benchmark: list_files /app failed)', async () => {
-    await withTempDir(async (dir) => {
+    await withTempDir(async (raw) => {
+      // The full path, not the 8.3 short name some Windows temp folders have (RUNNER~1): hn's jail refuses short names.
+      const dir = await realpath(raw);
       await mkdir(join(dir, 'src'));
       await writeFile(join(dir, 'top.txt'), 'needle at the top\n');
       await writeFile(join(dir, 'src', 'api.js'), 'needle in src\n');
@@ -290,7 +292,9 @@ describe('grep and list_files', () => {
   });
 
   it('attack: the search tools refuse a path outside the project themselves, without relying on the gate', async () => {
-    await withTempDir(async (dir) => {
+    await withTempDir(async (raw) => {
+      // The full path, not the 8.3 short name some Windows temp folders have (RUNNER~1): hn's jail refuses short names.
+      const dir = await realpath(raw);
       const project = join(dir, 'project');
       const sibling = join(dir, 'sibling');
       await mkdir(project);
@@ -313,7 +317,9 @@ describe('grep and list_files', () => {
   });
 
   it('attack: an absolute path outside the project is still refused, and lists nothing of it', async () => {
-    await withTempDir(async (dir) => {
+    await withTempDir(async (raw) => {
+      // The full path, not the 8.3 short name some Windows temp folders have (RUNNER~1): hn's jail refuses short names.
+      const dir = await realpath(raw);
       const project = join(dir, 'project');
       const sibling = join(dir, 'sibling');
       await mkdir(project);

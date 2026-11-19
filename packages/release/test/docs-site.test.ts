@@ -54,7 +54,13 @@ describe('the documentation site builder', () => {
     ] as const) {
       await withTempDir(async (dir) => {
         const site = await fixture(dir, { 'README.md': `# Home\n\n[go](${link})\n`, 'docs/guide/one.md': '# One\n\ntext\n' });
-        await assert.rejects(site.build(), refused(pattern), link);
+        const outcome = await site.build().then(
+          (done) => ({ done }),
+          (error: { stderr: string }) => ({ error }),
+        );
+        // If the build wrongly succeeds, say what it printed and what was on disk, so a failure on another OS is readable.
+        if ('done' in outcome) assert.fail(`${link}: the build succeeded but should have refused it. stdout: ${outcome.done.stdout.slice(0, 300)} stderr: ${outcome.done.stderr.slice(0, 300)} guide folder: ${(await readdir(join(dir, 'docs', 'guide'))).join(',')} root: ${(await readdir(dir)).join(',')}`);
+        assert.match(outcome.error.stderr, pattern, link);
         assert.equal(existsSync(site.out), false, 'a failed build must write nothing');
       });
     }
