@@ -112,7 +112,7 @@ describe('fleet results carry the cost report', () => {
         registerPrices(FAKE_PRICE, '2026-11-19');
         for (const name of ['repo-1', 'repo-2']) await mkdir(join(root, name));
         await writeFile(join(root, 'fleet.json'), JSON.stringify({ model: 'fake', baseUrl: model.url, window: 64_000, jobs: [1, 2].map((n) => ({ name: `job-${n}`, workdir: `repo-${n}`, task: `TASK job-${n}: write done.txt` })) }));
-        const options = { keys: KeyStore.capture({}), defaults: { model: 'fake', baseUrl: model.url, window: 64_000 } };
+        const options = { keys: KeyStore.capture({}), env: { HN_HOME: join(root, '.home') }, defaults: { model: 'fake', baseUrl: model.url, window: 64_000 } };
         const first = await runFleetFile(join(root, 'fleet.json'), options);
         assert.equal(first.counts.done, 2, JSON.stringify(first.results.map((result) => ({ name: result.name, status: result.status, reason: result.reason, text: result.text.slice(0, 300) }))));
         for (const result of first.results) {
