@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, it } from 'node:test';
@@ -64,6 +64,22 @@ describe('the documentation site builder', () => {
         assert.equal(existsSync(site.out), false, 'a failed build must write nothing');
       });
     }
+  });
+
+  it('does its work when it is started through a symlinked folder, as a macOS temp folder is, and does not silently do nothing', async () => {
+    await withTempDir(async (dir) => {
+      const real = join(dir, 'real');
+      await mkdir(real);
+      const site = await fixture(real, { 'README.md': '# Home\n\n[go](docs/guide/missing.md)\n', 'docs/guide/one.md': '# One\n' });
+      const link = join(dir, 'link');
+      await symlink(real, link, 'junction');
+      // The same script, reached by a path whose real location differs from the one it was started with.
+      const outcome = await run(process.execPath, ['--disable-proto=throw', join(link, 'scripts', 'docs-site.ts'), '--out', site.out]).then(
+        () => 'built',
+        (error: { stderr: string }) => error.stderr,
+      );
+      assert.match(String(outcome), /does not exist/, 'it ran, and refused the missing link, instead of exiting 0 with no output');
+    });
   });
 
   it('refuses links that could run script or reach elsewhere: javascript, data, file and scheme-relative addresses', async () => {

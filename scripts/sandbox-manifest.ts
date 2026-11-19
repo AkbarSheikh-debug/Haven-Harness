@@ -9,6 +9,7 @@
 // hn uses, against the public key derived from the private one, before it is written.
 
 import { createPrivateKey, createPublicKey } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -44,7 +45,7 @@ async function main(): Promise<void> {
   process.stdout.write(`${lines.join('\n')}\nSigned ${lines.length} helper(s).\n`);
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;

@@ -10,7 +10,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createPrivateKey, createPublicKey } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   process.stdout.write(`${await packNpm({ version: values.version, key: values.key, keyId: values['key-id'], out: values.out, epoch })}\n`);
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;

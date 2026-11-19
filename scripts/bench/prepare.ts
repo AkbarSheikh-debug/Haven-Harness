@@ -11,7 +11,7 @@
 
 import { execFile } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { chmod, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -109,7 +109,8 @@ async function main(): Promise<number> {
   return 0;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+// By real path, so a symlinked folder does not make it silently do nothing.
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().then(
     (code) => process.exit(code),
     (error: unknown) => {

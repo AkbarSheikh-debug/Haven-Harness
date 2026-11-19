@@ -7,7 +7,7 @@
 // text, so a broken or leaky site is never deployed. Text is escaped before it is marked up, and only http(s), mailto,
 // repository-relative and in-page links are kept, so a page cannot carry a script or a `javascript:` link.
 
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -183,7 +183,8 @@ async function main(): Promise<void> {
   process.stdout.write(`Built ${(await buildSite(target)).join(', ')} in ${target}\n`);
 }
 
-if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// Compared by real path: through a symlinked folder (a macOS temp folder is one) the two names differ and the script would silently do nothing.
+if (process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   main().catch((error: unknown) => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
