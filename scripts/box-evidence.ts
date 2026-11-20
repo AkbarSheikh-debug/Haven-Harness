@@ -99,6 +99,8 @@ else {
   console.log(`| ${row.os} | ${row.kernel} | ${row.ranOn} | ${row.real ? 'passed' : 'FAILED'} | ${row.tier} | ${row.verified.join(', ') || 'none'} | ${row.notApplied.join('; ').replaceAll('|', '/') || 'none'} |`);
   for (const line of row.evidence) console.log(`\n- ${line}`);
 }
+// On GitHub the result is also an annotation, readable through the API without signing in.
+if (process.env['GITHUB_ACTIONS'] === 'true') console.error(`::notice title=sandbox evidence::${JSON.stringify({ os: row.os, kernel: row.kernel, real: row.real, tier: row.tier, verified: row.verified, notApplied: row.notApplied })}`);
 // On GitHub a failed check is also an annotation, readable without signing in to see the log.
 if (!row.real && process.env['GITHUB_ACTIONS'] === 'true') for (const line of row.evidence) console.error(`::error::${line.replaceAll('\n', ' ')}`);
 process.exit(row.real ? 0 : 1);

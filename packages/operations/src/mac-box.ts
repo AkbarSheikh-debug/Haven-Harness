@@ -1,4 +1,5 @@
 import { existsSync, realpathSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { HnError } from '@hn/core';
 import { seatbeltRun, type OsBoxPaths, type SeatbeltOptions } from './os-boxes.ts';
@@ -40,6 +41,7 @@ export class SeatbeltBox extends PosixBox {
     if (process.platform !== 'darwin') throw new HnError('NO_MAC_BOX', 'The Seatbelt box is macOS only.');
     if (!existsSync(SANDBOX_EXEC)) throw new HnError('NO_MAC_BOX', `${SANDBOX_EXEC} was not found, so there is no macOS box.`);
     if (!isAbsolute(options.boxDir)) throw new HnError('NO_MAC_BOX', 'The box folder must be an absolute path.');
+    await mkdir(options.boxDir, { recursive: true, mode: 0o700 });
     // Seatbelt matches real paths: /var and /tmp are links into /private, and a rule on the link allows nothing.
     const box = new SeatbeltBox({ ...options, boxDir: realpathSync.native(options.boxDir) });
     await box.makeFolders();

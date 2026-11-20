@@ -49,7 +49,9 @@ describe('the box command lines, on any platform', () => {
     // The helper is bound read-only into the box, so the box can run it; it is never writable.
     const bound = args.flatMap((arg, i) => (arg === '--ro-bind' ? [args[i + 1]] : []));
     assert.deepEqual(bound, ['/opt/hn/hn-sandbox']);
-    assert.deepEqual(args.flatMap((arg, i) => (arg === '--bind' ? [args[i + 1]] : [])), [paths.copy, paths.home, paths.tmp]);
+    // Every kind of writable mount, not only --bind: a read-only system folder turned writable must be seen.
+    const writableMounts = args.flatMap((arg, i) => (/^--(dev-)?bind(-try)?$/.test(arg) ? [args[i + 1]] : []));
+    assert.deepEqual(writableMounts, [paths.copy, paths.home, paths.tmp]);
     assert.ok(args.join(' ').includes('--cap-drop ALL'));
   });
 
