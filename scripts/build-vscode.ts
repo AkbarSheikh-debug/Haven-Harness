@@ -13,11 +13,16 @@ import { pathToFileURL } from 'node:url';
 const ROOT = join(import.meta.dirname, '..');
 export const EXTENSION_DIR = join(ROOT, 'packages', 'vscode');
 
-/** Compiles the extension and returns the folder the JavaScript is in. Throws with the compiler's words if it fails. */
-export async function buildExtension(): Promise<string> {
-  const dist = join(EXTENSION_DIR, 'dist');
+/**
+ * Compiles the extension and returns the folder the JavaScript is in. Throws with the compiler's words if it fails.
+ * With no folder it builds `packages/vscode/dist`, which the editor tests load and which one process at a time should
+ * build. Anything else that only wants the compiled files (the packer) names a folder of its own, so it cannot delete
+ * the one a test is loading.
+ */
+export async function buildExtension(into?: string): Promise<string> {
+  const dist = into ?? join(EXTENSION_DIR, 'dist');
   await rm(dist, { recursive: true, force: true });
-  const tsc = spawnSync(process.execPath, [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(EXTENSION_DIR, 'tsconfig.build.json')], { cwd: ROOT, encoding: 'utf8' });
+  const tsc = spawnSync(process.execPath, [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(EXTENSION_DIR, 'tsconfig.build.json'), '--outDir', dist], { cwd: ROOT, encoding: 'utf8' });
   if (tsc.status !== 0) throw new Error(`The extension did not compile:\n${tsc.stdout}${tsc.stderr}`);
   return dist;
 }

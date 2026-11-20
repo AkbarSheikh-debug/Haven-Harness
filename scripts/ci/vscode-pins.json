@@ -16,7 +16,7 @@
     "darwin-arm64": {
       "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/8a14f0cc1b08d531eb83255ea3764ae22aa932b5/VSCode-darwin-arm64.zip",
       "sha256": "149d944feb599b076b48406b174e1c3cd1d510e9d673854777a20a6f4116a59a",
-      "executable": "Visual Studio Code.app/Contents/MacOS/Electron"
+      "executable": "Visual Studio Code.app/Contents/MacOS/Code"
     }
   }
 }

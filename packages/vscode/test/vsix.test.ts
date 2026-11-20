@@ -24,6 +24,16 @@ function unzip(bytes: Buffer): Map<string, Buffer> {
   return entries;
 }
 
+describe('the packer and the editor tests share one folder safely', () => {
+  it('compiles into a folder of its own, never the dist the editor tests load', async () => {
+    // Found on CI: the packer rebuilt `dist` while a real VS Code was loading it, and the host test could not find a file.
+    // The test files run side by side, so exactly one thing may build `dist`.
+    const source = await readFile(new URL('../../../scripts/pack-vsix.ts', import.meta.url), 'utf8');
+    const calls = source.match(/buildExtension\([^)]*\)/g) ?? [];
+    assert.deepEqual(calls, ['buildExtension(scratch)'], `the packer builds the shared dist: ${calls.join(', ')}`);
+  });
+});
+
 describe('the packed .vsix', () => {
   it('is a zip that reads back, and two packs of the same source are byte-identical', { timeout: 120_000 }, async () => {
     const dir = join(process.env['TEMP'] ?? process.env['TMPDIR'] ?? '/tmp', `hn-vsix-${process.pid}`);

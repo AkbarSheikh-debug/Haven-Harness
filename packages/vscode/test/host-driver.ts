@@ -19,6 +19,7 @@ export function findVsCode(): string | null {
   const candidates = [
     process.env['HN_VSCODE'],
     process.env['LOCALAPPDATA'] === undefined ? undefined : join(process.env['LOCALAPPDATA'], 'Programs', 'Microsoft VS Code', 'Code.exe'),
+    '/Applications/Visual Studio Code.app/Contents/MacOS/Code',
     '/Applications/Visual Studio Code.app/Contents/MacOS/Electron',
     '/usr/share/code/code',
   ];

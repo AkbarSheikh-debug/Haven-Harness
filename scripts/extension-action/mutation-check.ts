@@ -86,6 +86,7 @@ const mutants: Mutant[] = [
   { name: 'a folder\'s own settings can set hn.path', file: MANIFEST, find: '"scope": "machine",', replace: '"scope": "window",', tests: [T.vsix], vscode: true },
   { name: 'the extension claims to support untrusted folders', file: MANIFEST, find: '"supported": false,\n      "description": "Haven Harness reads', replace: '"supported": true,\n      "description": "Haven Harness reads', tests: [T.vsix], vscode: true },
   { name: 'the extension starts by itself', file: MANIFEST, find: '"activationEvents": [],', replace: '"activationEvents": ["*"],', tests: [T.vsix], vscode: true },
+  { name: 'the packer rebuilds the dist a running VS Code is loading', file: 'scripts/pack-vsix.ts', find: 'buildExtension(scratch)', replace: 'buildExtension()', tests: [T.vsix] },
   { name: 'the Windows command line accepts shell syntax', file: LAUNCH, find: 'const SAFE_ARG = /^[A-Za-z0-9_.:/\\\\@=,+-]+$/;', replace: 'const SAFE_ARG = /^.*$/;', tests: [T.launch] },
   { name: 'a quoted hn.path reaches cmd.exe', file: LAUNCH, find: 'if (/["%^&|<>\\r\\n]/.test(command)) throw', replace: 'if (false) throw', tests: [T.launch] },
   // The report.

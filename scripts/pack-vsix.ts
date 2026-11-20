@@ -8,7 +8,8 @@
 // are byte-identical. Publishing to a marketplace is the owner's step, with the owner's publisher account.
 
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -82,7 +83,16 @@ export interface Packed {
 
 export async function packVsix(options: { version: string; out: string }): Promise<Packed> {
   if (!/^\d+\.\d+\.\d+$/.test(options.version)) throw new Error('--version must look like 0.1.0.');
-  const dist = await buildExtension();
+  // Compiled into a folder of its own and read at once: `dist` belongs to the editor tests, and building it here would
+  // delete it under a VS Code that is loading it.
+  const scratch = await mkdtemp(join(tmpdir(), 'hn-vsix-build-'));
+  const compiled: ZipEntry[] = [];
+  try {
+    const built = await buildExtension(scratch);
+    for (const name of (await readdir(built)).filter((file) => file.endsWith('.js')).sort()) compiled.push({ path: `extension/dist/${name}`, data: await readFile(join(built, name)) });
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
   const source = JSON.parse(await readFile(join(EXTENSION_DIR, 'package.json'), 'utf8')) as Record<string, unknown>;
   // The workspace's private name and dev dependencies stay behind. The extension's own id is publisher.name.
   const { devDependencies: _dev, private: _private, ...rest } = source;
@@ -96,7 +106,7 @@ export async function packVsix(options: { version: string; out: string }): Promi
   };
   const publisher = String(manifest['publisher']);
   const files: ZipEntry[] = [{ path: 'extension/package.json', data: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`) }];
-  for (const name of (await readdir(dist)).filter((file) => file.endsWith('.js')).sort()) files.push({ path: `extension/dist/${name}`, data: await readFile(join(dist, name)) });
+  files.push(...compiled);
   files.push({ path: 'extension/readme.md', data: await readFile(join(EXTENSION_DIR, 'README.md')) });
   files.push({ path: 'extension/LICENSE.txt', data: await readFile(join(ROOT, 'LICENSE')) });
   const engine = String((manifest['engines'] as Record<string, unknown>)['vscode']);
