@@ -8,6 +8,7 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 
 | Attack | Test |
 |---|---|
+| `agent_job_holds_no_write_token` | [packages/action/test/workflow.test.ts](../../packages/action/test/workflow.test.ts) |
 | `agents_md_symlink_to_secret_not_loaded` | [packages/operations/test/safe-files.test.ts](../../packages/operations/test/safe-files.test.ts) |
 | `approval_invalid_after_script_edit` | [packages/security/test/approval.test.ts](../../packages/security/test/approval.test.ts) |
 | `benchmark_container_needs_operator_allow_entry` | [packages/surfaces/test/outer-sandbox.test.ts](../../packages/surfaces/test/outer-sandbox.test.ts) |
@@ -30,13 +31,25 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 | `dns_subdomain_exfil_blocked_pre_resolve` | [packages/operations/test/web.test.ts](../../packages/operations/test/web.test.ts) |
 | `dockerfile_context_excludes_secrets` | [packages/surfaces/test/recipes.test.ts](../../packages/surfaces/test/recipes.test.ts) |
 | `dotenv_case_variants_masked` | [packages/surfaces/test/attacks.test.ts](../../packages/surfaces/test/attacks.test.ts) |
+| `editor_agent_cannot_pick_allow_always` | [packages/vscode/test/acp-client.test.ts](../../packages/vscode/test/acp-client.test.ts) |
+| `editor_agent_cannot_read_files_or_start_terminals` | [packages/vscode/test/acp-client.test.ts](../../packages/vscode/test/acp-client.test.ts) |
+| `editor_diff_reveals_hidden_characters` | [packages/surfaces/test/acp.test.ts](../../packages/surfaces/test/acp.test.ts) |
+| `editor_diff_shows_exact_bytes_written` | [packages/surfaces/test/acp.test.ts](../../packages/surfaces/test/acp.test.ts) |
+| `editor_folder_settings_cannot_choose_binary_or_model_server` | [packages/vscode/test/vsix.test.ts](../../packages/vscode/test/vsix.test.ts) |
+| `editor_installed_extension_not_run_in_untrusted_folder` | [packages/vscode/test/vsix.test.ts](../../packages/vscode/test/vsix.test.ts) |
+| `editor_oversized_line_and_garbage_contained` | [packages/vscode/test/acp-client.test.ts](../../packages/vscode/test/acp-client.test.ts) |
+| `editor_reject_is_never_turned_into_allow` | [packages/vscode/test/acp-client.test.ts](../../packages/vscode/test/acp-client.test.ts) |
+| `editor_text_flood_contained` | [packages/vscode/test/acp-client.test.ts](../../packages/vscode/test/acp-client.test.ts) |
+| `editor_untrusted_folder_starts_nothing` | [packages/vscode/test/host.test.ts](../../packages/vscode/test/host.test.ts) |
 | `exit_plan_mode_requires_human` | [packages/tools/test/planning-tools.test.ts](../../packages/tools/test/planning-tools.test.ts) |
 | `external_provider_refused_in_yolo` | [packages/delegate/test/external.test.ts](../../packages/delegate/test/external.test.ts) |
 | `external_sandbox_refused_on_workstation` | [packages/surfaces/test/sandbox-door.test.ts](../../packages/surfaces/test/sandbox-door.test.ts) |
 | `forged_id_token_refused` | [packages/broker/test/modified-client.test.ts](../../packages/broker/test/modified-client.test.ts) |
 | `forged_log_grants_nothing` | [packages/session/test/crash.test.ts](../../packages/session/test/crash.test.ts) |
+| `forged_log_report_refused` | [packages/surfaces/test/report.test.ts](../../packages/surfaces/test/report.test.ts) |
 | `git_dir_rename_cannot_replace_config` | [packages/surfaces/test/attacks.test.ts](../../packages/surfaces/test/attacks.test.ts) |
 | `git_history_secret_not_readable_in_box` | [packages/surfaces/test/sandbox-door.test.ts](../../packages/surfaces/test/sandbox-door.test.ts) |
+| `github_token_never_reaches_hn` | [packages/action/test/e2e.test.ts](../../packages/action/test/e2e.test.ts) |
 | `global_git_filter_not_invoked` | [packages/surfaces/test/attacks.test.ts](../../packages/surfaces/test/attacks.test.ts) |
 | `guardian_cannot_approve_external` | [packages/security/test/gate-v2.test.ts](../../packages/security/test/gate-v2.test.ts) |
 | `handoff_keeps_taint` | [packages/surfaces/test/handoff.test.ts](../../packages/surfaces/test/handoff.test.ts) |
@@ -45,6 +58,11 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 | `host_exec_manifest_blocks_import` | [packages/operations/test/handback.test.ts](../../packages/operations/test/handback.test.ts) |
 | `hostile_image_cannot_fake_canary` | [packages/operations/test/verifier.test.ts](../../packages/operations/test/verifier.test.ts) |
 | `image_recipe_edit_requires_human_on_resume` | [packages/surfaces/test/recipes.test.ts](../../packages/surfaces/test/recipes.test.ts) |
+| `issue_label_from_non_writer_runs_nothing` | [packages/action/test/e2e.test.ts](../../packages/action/test/e2e.test.ts) |
+| `issue_planted_workflow_never_reaches_pull_request` | [packages/action/test/e2e.test.ts](../../packages/action/test/e2e.test.ts) |
+| `issue_text_cannot_become_a_command` | [packages/action/test/cli.test.ts](../../packages/action/test/cli.test.ts) |
+| `issue_text_cannot_close_the_untrusted_frame` | [packages/action/test/gate.test.ts](../../packages/action/test/gate.test.ts) |
+| `issue_text_is_untrusted_event_not_instruction` | [packages/action/test/e2e.test.ts](../../packages/action/test/e2e.test.ts) |
 | `linked_worktree_gitfile_rewrite_rejected` | [packages/operations/test/handback.test.ts](../../packages/operations/test/handback.test.ts) |
 | `markdown_image_never_fetched` | [packages/surfaces/test/serve.test.ts](../../packages/surfaces/test/serve.test.ts) |
 | `mcp_sampling_denied` | [packages/tools/test/mcp.test.ts](../../packages/tools/test/mcp.test.ts) |
@@ -59,6 +77,8 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 | `option_click_not_user_origin` | [packages/tools/test/planning-tools.test.ts](../../packages/tools/test/planning-tools.test.ts) |
 | `osc52_and_osc8_stripped_all_doors` | [packages/surfaces/test/doors.test.ts](../../packages/surfaces/test/doors.test.ts) |
 | `parent_session_grant_not_inherited` | [packages/security/test/policy.test.ts](../../packages/security/test/policy.test.ts) |
+| `patch_to_protected_path_pushes_nothing` | [packages/action/test/publish.test.ts](../../packages/action/test/publish.test.ts) |
+| `patch_with_symlink_submodule_binary_or_protected_path_refused` | [packages/action/test/publish.test.ts](../../packages/action/test/publish.test.ts) |
 | `path_encoded_exfil_blocked_under_taint` | [packages/security/test/egress.test.ts](../../packages/security/test/egress.test.ts) |
 | `plugin_backend_cannot_claim_tier` | [packages/operations/test/backends.test.ts](../../packages/operations/test/backends.test.ts) |
 | `prepare_cannot_publish_or_reach_engine_api` | [packages/operations/test/prepare.test.ts](../../packages/operations/test/prepare.test.ts) |
@@ -67,6 +87,7 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 | `recall_gates_ignore_injected_queries` | [packages/memory/test/dream.test.ts](../../packages/memory/test/dream.test.ts) |
 | `recursive_hn_cannot_reset_taint` | [packages/surfaces/test/sandbox-door.test.ts](../../packages/surfaces/test/sandbox-door.test.ts) |
 | `redirect_revalidated` | [packages/operations/test/web.test.ts](../../packages/operations/test/web.test.ts) |
+| `report_text_cannot_link_or_mention` | [packages/surfaces/test/report.test.ts](../../packages/surfaces/test/report.test.ts) |
 | `requester_cannot_approve_own_request` | [packages/broker/test/modified-client.test.ts](../../packages/broker/test/modified-client.test.ts) |
 | `rollback_refuses_while_box_alive` | [packages/operations/test/checkpoints.test.ts](../../packages/operations/test/checkpoints.test.ts) |
 | `rollback_reports_skipped_paths` | [packages/operations/test/checkpoints.test.ts](../../packages/operations/test/checkpoints.test.ts) |
@@ -84,5 +105,6 @@ The list is checked by `packages/surfaces/test/attacks.test.ts`: a named attack 
 | `unmarked_repo_counts_private` | [packages/security/test/taint.test.ts](../../packages/security/test/taint.test.ts) |
 | `vm_escape_refused_below_tier3` | [packages/orchestrate/test/workflow.test.ts](../../packages/orchestrate/test/workflow.test.ts) |
 | `web_to_file_to_read_stays_tainted` | [packages/security/test/taint.test.ts](../../packages/security/test/taint.test.ts) |
+| `workflow_never_pastes_issue_text_into_a_command` | [packages/action/test/workflow.test.ts](../../packages/action/test/workflow.test.ts) |
 | `yolo_without_sandbox` | [packages/security/test/gate-modes.test.ts](../../packages/security/test/gate-modes.test.ts) |
 | `zstd_bomb_rejected` | [packages/session/test/log.test.ts](../../packages/session/test/log.test.ts) |

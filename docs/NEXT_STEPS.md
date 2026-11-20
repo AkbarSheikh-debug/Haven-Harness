@@ -8,6 +8,7 @@ This is a first, working version of Haven Harness. This file is the list of what
 - Team mode: a self-hosted broker that holds model keys and applies a signed policy.
 - Signed releases, an update verifier, and a one-command npm install that fetches a verified sandbox helper on first use.
 - A cost report by role and model, per-role model choice in `routing.json`, and a Harbor adapter with a resumable, spend-capped benchmark runner (`scripts/bench`, see [docs/guide/benchmarks.md](guide/benchmarks.md)).
+- A VS Code extension that shows each change as a diff and asks once ([guide](guide/vscode.md)), and a GitHub Action that turns a labelled issue into a pull request from a verified box ([guide](guide/github-action.md)), with `hn report` for the session report.
 - The full test suite passes (about 1,560 tests) and typechecks clean.
 
 ## 1. Finish the benchmarks (the biggest open item)
@@ -42,7 +43,8 @@ None of this has run yet, because it needs accounts and a key that belong to the
 ## 4. Next phases
 
 - **Make the three-OS CI jobs required.** The Linux box (bubblewrap, Landlock, seccomp) and the macOS box (Seatbelt) are built and verified from outside on GitHub runners (see [verified on every OS](guide/sandbox-verified.md)). Requiring the three `test` jobs is a branch-protection setting on GitHub, which belongs to the repository owner: Settings, Branches, add a rule for `main` and tick the three `test (...)` checks.
-- **Where people work:** a VS Code extension on the ACP door, and a GitHub Action that turns a labelled issue into a pull request with every command run in a verified box.
+- **Try the Action on a real repository, watching.** It has never run on GitHub (see [the Action's guide](guide/github-action.md) for the three things that rest on documentation, not a test). Do it on a throwaway repository with a capped model key first.
+- **Publish the VS Code extension** (a Marketplace or Open VSX publisher account is yours), and test it on a second VS Code version. A box for editor sessions is not built: they run with the gate and your approvals only.
 - **Trust you can show:** a public page that lists every named attack with its test, a hall of fame for reported holes, and a replay and audit screen in `hn serve`.
 
 ## 5. Known limits

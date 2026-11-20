@@ -1,0 +1,37 @@
+name: "hn publish"
+description: "Checks the patch hn made and, if it passes, opens a pull request with the session report. Runs no model and no command the model chose."
+
+inputs:
+  task:
+    description: "The task.json the GATE job wrote (not one from the agent job)."
+    required: true
+  result:
+    description: "The folder with hn.patch, report.md and result.json from the agent job."
+    required: true
+  token:
+    description: "The workflow's GITHUB_TOKEN, with contents, pull-requests and issues write."
+    required: true
+  protected-paths:
+    description: "Extra paths, comma separated, that a patch may never touch. .github, git hooks and package-manager config are always protected."
+    default: ""
+
+outputs:
+  outcome:
+    description: "pull-request, refused, empty or incomplete."
+    value: ${{ steps.publish.outputs.outcome }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: "24"
+        package-manager-cache: false
+    - id: publish
+      shell: bash
+      run: node --disable-proto=throw "$GITHUB_ACTION_PATH/../../packages/action/src/main.ts" publish
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        HN_ACTION_TASK: ${{ inputs.task }}
+        HN_ACTION_OUT: ${{ inputs.result }}
+        HN_PROTECTED_PATHS: ${{ inputs.protected-paths }}

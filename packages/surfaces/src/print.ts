@@ -49,11 +49,16 @@ export interface PrintOptions extends CliOptions {
   readonly json: boolean;
   /** A granted child's approver: the parent's person, reached over the channel. Never anyone at this door. */
   readonly routed?: Approver;
+  /**
+   * `event`: the prompt was read from outside (a GitHub issue) and is not the user's instruction. The session starts as
+   * untrusted as an event, which keeps the user-only powers (fetching a URL unseen) away from it. It can only lower trust.
+   */
+  readonly promptOrigin?: 'event';
 }
 
 /** The headless door. Nobody is here to ask, so it runs with no approver at all. */
 export async function runPrint(options: PrintOptions, keys: KeyStore, write = (text: string) => process.stdout.write(text)): Promise<number> {
-  const { approver: _unused, routed, prompt, json, ...withoutApprover } = options;
+  const { approver: _unused, routed, prompt, json, promptOrigin, ...withoutApprover } = options;
   const harness = new Harness({
     ...withoutApprover,
     keys,
@@ -66,7 +71,7 @@ export async function runPrint(options: PrintOptions, keys: KeyStore, write = (t
     const session = await harness.open();
     // A headless run waits for its background children (section 11.2), then gives the model one more turn to use
     // their reports. Children still running at the deadline are stopped, and their logs say so.
-    const { sessionId: _id, ...result } = await harness.run(prompt, { waitForChildrenMs: CHILD_WAIT_MS });
+    const { sessionId: _id, ...result } = await harness.run(prompt, { waitForChildrenMs: CHILD_WAIT_MS, ...(promptOrigin === undefined ? {} : { origin: promptOrigin }) });
     // What the whole family cost, by role and model, from the log (Phase 10): `result.usage` is only this turn's own.
     const cost = costReport(session.agent.events);
     // Nobody is here to approve anything, so a box's changes on the host-exec manifest are held back, never applied.

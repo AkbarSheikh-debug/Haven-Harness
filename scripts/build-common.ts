@@ -1,4 +1,4 @@
-// Shared by the release builders (the per-platform release and the npm package): the compiled workspace,
+// Shared by the release builders (Phase 8's per-platform release and Phase 9's npm package): the compiled workspace,
 // the vendored third-party closure, and the file walker. Developer tools only; never shipped.
 import { spawnSync } from 'node:child_process';
 import { realpath, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
@@ -12,8 +12,8 @@ import { checkNpmIntegrity, readTar, type SbomComponent, type TarFile } from '..
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PRODUCT = 'haven-harness';
-/** Workspace packages that are developer tools only and never ship. */
-export const DEV_ONLY = new Set(['testkit', 'evals']);
+/** Workspace packages that are developer tools only, or separate programs that drive hn (the editor extension, the Action), and never ship in the `hn` package. */
+export const DEV_ONLY = new Set(['testkit', 'evals', 'vscode', 'action']);
 
 export const toPosix = (path: string): string => path.split('\\').join('/');
 

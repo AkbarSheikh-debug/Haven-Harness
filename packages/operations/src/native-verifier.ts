@@ -99,11 +99,14 @@ Promise.all(tries).then(() => setTimeout(() => { say('attempts=' + attempts); pr
 export function survivorScript(beatFile: string): string {
   // Plain .NET calls only, no cmdlets: found on a GitHub runner, cmdlets may not load in the box at all (a module
   // folder the box cannot read stops auto-loading), and then no background process ran and nothing was tested.
+  // No base64 anywhere: a PowerShell that starts a hidden PowerShell with an `-EncodedCommand` is what Microsoft
+  // Defender's command-line heuristics call a Trojan (found by a start that was refused with "Access is denied" and
+  // a Defender detection of that very command line), so the script goes in on stdin and the loop in as plain text.
   const loop = `$f='${beatFile.replaceAll("'", "''")}'; $t=[DateTime]::Now; while (([DateTime]::Now - $t).TotalSeconds -lt 20) { [IO.File]::AppendAllText($f, 'b'); [Threading.Thread]::Sleep(100) }`;
-  const encoded = Buffer.from(loop, 'utf16le').toString('base64');
   return [
     `$ps = [IO.Path]::Combine($env:SystemRoot, 'System32\\WindowsPowerShell\\v1.0\\powershell.exe')`,
-    `$si = [Diagnostics.ProcessStartInfo]::new($ps, '-NoProfile -NonInteractive -EncodedCommand ${encoded}')`,
+    // The loop has no double quote in it (a Windows path cannot), so it is one quoted argument.
+    `$si = [Diagnostics.ProcessStartInfo]::new($ps, '-NoProfile -NonInteractive -Command "${loop.replaceAll("'", "''")}"')`,
     // A plain CreateProcess with no job of its own, sharing the console, as Start-Process -NoNewWindow does.
     '$si.UseShellExecute = $false',
     `$si.WorkingDirectory = '${dirname(beatFile).replaceAll("'", "''")}'`,
@@ -115,6 +118,7 @@ export function survivorScript(beatFile: string): string {
 
 /** Five seconds of heartbeats: far more than a box that ends at once allows. */
 const SURVIVOR_BEATS = 50;
+const SURVIVOR_TRIES = 3;
 const sizeOf = (path: string): Promise<number> => stat(path).then((info) => info.size, () => 0);
 const exists = (path: string): Promise<boolean> => stat(path).then(() => true, () => false);
 
@@ -132,13 +136,24 @@ export async function verifyNativeTier(box: NativeVerifiable, sinks: NonceSinks,
   try {
     const script = nativeCanary({ nonce: sinks.nonce, salt, tcpPort: sinks.tcpPort, udpPort: sinks.udpPort, targets: options.targets ?? hostAddresses(), nonceFile, escapeFile, proofFile });
     outcome = await box.run(options.interpreter, ['-'], { cwd: box.work, timeoutMs: options.timeoutMs ?? 60_000, signal: new AbortController().signal, input: script, report: true });
-    const survivor = Buffer.from(survivorScript(beatFile), 'utf16le').toString('base64');
-    await box.run(options.powershell ?? powershellPath(), ['-NoProfile', '-NonInteractive', '-EncodedCommand', survivor], { cwd: box.work, timeoutMs: options.timeoutMs ?? 60_000, signal: new AbortController().signal });
-    await new Promise((resolve) => setTimeout(resolve, options.settleMs ?? 400));
-    const first = await sizeOf(beatFile);
+    const survivor = survivorScript(beatFile);
+    // A probe that never started (Windows can fail to start a low-integrity process now and then) proves nothing either
+    // way, so it is tried again. One that started and was left running is judged on the first try that shows it.
+    let first = 0;
+    let last: RunOutcome | null = null;
+    let tries = 0;
+    while (first === 0 && tries < SURVIVOR_TRIES) {
+      tries += 1;
+      last = await box.run(options.powershell ?? powershellPath(), ['-NoProfile', '-NonInteractive', '-Command', '-'], { cwd: box.work, timeoutMs: options.timeoutMs ?? 60_000, signal: new AbortController().signal, input: survivor });
+      await new Promise((resolve) => setTimeout(resolve, options.settleMs ?? 400));
+      first = await sizeOf(beatFile);
+    }
     await new Promise((resolve) => setTimeout(resolve, 800));
     const second = await sizeOf(beatFile);
-    if (first === 0) evidence.push('No background process ran in the box, so whether one could outlive it was not tested.');
+    if (first === 0) {
+      const said = last === null ? '' : ` Last try: exit ${last.code === null ? 'none' : last.code}${last.timedOut ? ', timed out' : ''}${last.stderr.length === 0 ? '' : `, "${last.stderr.toString('utf8').replace(/\s+/g, ' ').trim().slice(-200)}"`}.`;
+      evidence.push(`No background process ran in the box after ${tries} tries, so whether one could outlive it was not tested.${said}`);
+    }
     // The script exits as soon as the background process has written once. Many writes mean it kept going after the
     // script was done, and whatever waited for it (its output pipe) was not the box ending it.
     else if (second > first || first >= SURVIVOR_BEATS) evidence.push('A process the box started kept running after the box ended.');

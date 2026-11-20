@@ -28,6 +28,29 @@ export function approvalHash(binding: ApprovalBinding): string {
     .digest('hex');
 }
 
+/** The most text of either side a change preview carries. A bigger file shows only the changed fragment. */
+export const MAX_CHANGE_CHARS = 64_000;
+
+/**
+ * What a file tool is about to do, as text a person can compare: the file before and after, or only the changed
+ * fragment when the file is too big to show. `oldText` is null for a file that does not exist yet. It is built by the
+ * tool from the same arguments that will run, and it is for showing only: nothing is ever applied from it.
+ */
+export interface ProposedChange {
+  readonly path: string;
+  readonly oldText: string | null;
+  readonly newText: string;
+  /** True when the two sides are the changed fragment, not the whole file. */
+  readonly partial: boolean;
+  /** True when a side was cut at MAX_CHANGE_CHARS, so the person is not seeing all of it. */
+  readonly truncated: boolean;
+}
+
+/** A short digest of a previewed change, written to the log with the approval so a review can see what was shown. */
+export function changeDigest(change: ProposedChange): string {
+  return createHash('sha256').update(canonical([change.path, change.oldText, change.newText, change.partial, change.truncated])).digest('hex').slice(0, 16);
+}
+
 /** What a human can review in one sitting. Anything longer is refused, never approved unseen. */
 export const MAX_CARD_BYTES = 8_192;
 

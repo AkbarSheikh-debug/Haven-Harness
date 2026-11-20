@@ -11,6 +11,8 @@ const ALLOWED: Readonly<Record<string, string>> = {
   'operations/src': 'the local backend: the only place a tool or the harness reaches the machine',
   'evals/src': 'the task-suite runner starts `hn` and its own hidden checks; it is a developer tool and does not ship in `hn`',
   'surfaces/bin': 'the launcher starts node with --disable-proto=throw and the user\'s own arguments',
+  'vscode/src': 'the editor extension starts the user\'s own `hn acp` and nothing else; it is a separate program, not the agent, and does not ship in `hn`',
+  'action/src': 'the GitHub Action\'s stages start `hn` (in its verified box) and `git` on a checked patch, never a command the model chose; they do not ship in `hn`',
 };
 
 async function sourceFiles(): Promise<string[]> {
@@ -39,7 +41,8 @@ describe('where processes may start (invariant 14)', () => {
   });
 
   it('keeps the list short and every entry explained', () => {
-    assert.ok(Object.keys(ALLOWED).length <= 3);
+    // Three places inside the harness's own tree, plus the two separate programs that drive it (the editor extension and the Action).
+    assert.ok(Object.keys(ALLOWED).length <= 5);
     for (const reason of Object.values(ALLOWED)) assert.ok(reason.length > 20);
   });
 

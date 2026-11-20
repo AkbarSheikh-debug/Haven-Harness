@@ -1,7 +1,7 @@
 import type { Origin } from '@hn/core';
 import type { ImageData } from '@hn/provider';
 import type { Operations } from '@hn/operations';
-import type { Effect, PathUse, TaintTracker } from '@hn/security';
+import type { Effect, PathUse, ProposedChange, TaintTracker } from '@hn/security';
 import type { JobManager } from './jobs.ts';
 
 export type ToolArgs = Readonly<Record<string, unknown>>;
@@ -46,6 +46,11 @@ export interface ToolDefinition {
   summary(args: ToolArgs): string;
   /** The real destination (a URL, a host), shown on the approval card apart from the model's own words. */
   target?(args: ToolArgs): string;
+  /**
+   * The file change this call would make, as text, for a door that can show a diff. Read-only: it may read the file and
+   * must never write. A failure or null means no preview, and the summary stands alone.
+   */
+  preview?(args: ToolArgs, context: Pick<ToolContext, 'workdir' | 'ops'>): Promise<ProposedChange | null>;
   /** A reason to refuse this call outright, before the gate and before any person is asked; null to go on. */
   refuse?(args: ToolArgs): string | null;
   /** True when this call must be shown to a person in every mode, and refused when nobody is there. */

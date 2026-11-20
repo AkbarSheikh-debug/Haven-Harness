@@ -1,0 +1,12 @@
+{
+  "name": "@hn/action",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "devDependencies": {
+    "@hn/operations": "workspace:*",
+    "@hn/testkit": "workspace:*"
+  }
+}

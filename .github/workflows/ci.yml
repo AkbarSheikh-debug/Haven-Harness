@@ -44,6 +44,18 @@ jobs:
       # hn never pulls an image itself; the container tests use this one, so the runner pulls it first.
       - if: runner.os == 'Linux'
         run: docker pull alpine:3.20
+      # The editor extension's tests drive a REAL VS Code (its extension host, diff editor and workspace trust). It is a pinned
+      # build, checked against a pinned SHA-256 (scripts/ci/vscode-pins.json). Linux has no display, so it gets a virtual one.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y -qq xvfb libgbm1 libnss3 libasound2t64 libxkbfile1 libsecret-1-0 libgtk-3-0t64
+      - name: Install the pinned VS Code
+        shell: bash
+        run: |
+          path="$(node --disable-proto=throw scripts/ci/install-vscode.ts "$RUNNER_TEMP/vscode" | tail -1)"
+          echo "VS Code: $path"
+          echo "HN_VSCODE=$path" >> "$GITHUB_ENV"
+          echo "HN_REQUIRE_VSCODE=1" >> "$GITHUB_ENV"
       - run: pnpm typecheck
       - name: Run the tests
         shell: bash

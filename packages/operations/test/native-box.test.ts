@@ -12,6 +12,7 @@ import {
   loadBoxConfig,
   nativeReportProblems,
   shellInvocation,
+  survivorScript,
   verifyNativeTier,
   type NativeReport,
   type NativeVerifiable,
@@ -40,6 +41,15 @@ describe('the native box report and shell, on any platform', () => {
     assert.ok(script.includes("-Root 'C:\\it''s\\work'"));
     assert.throws(() => shellInvocation({ kind: 'powershell', path: 'C:\\ps.exe' }, 'x'.repeat(20_000), 'C:\\w'), /too long/);
     assert.deepEqual(shellInvocation({ kind: 'posix', path: 'C:\\t\\busybox.exe' }, 'ls', 'C:\\w').args, ['sh', '-c', 'ls']);
+  });
+
+  it('starts the background check with no base64 command line, which Microsoft Defender treats as a Trojan', () => {
+    const script = survivorScript("C:\\Users\\a b\\it's\\beat-1");
+    assert.doesNotMatch(script, /EncodedCommand|FromBase64|-enc\b/i);
+    // The path's quote is doubled once for the loop and once more for the quoted string that carries the loop.
+    assert.ok(script.includes("it''''s"), 'a quote in the path is not escaped for both layers');
+    assert.match(script, /-Command "\$f=''C:\\Users\\a b\\it''''s\\beat-1''; /);
+    assert.doesNotMatch(script.slice(script.indexOf('-Command "') + 10).split('"')[0] ?? '', /"/);
   });
 
   it('takes a POSIX shell only from the user file, pinned by hash', async () => {
@@ -143,6 +153,46 @@ describe('the Windows native box, for real', { skip: process.platform === 'win32
     const report = await verifyNativeTier(liar, sinks, { outside, interpreter: process.execPath });
     assert.equal(report.real, false);
     assert.match(report.evidence.join('\n'), /canary did not run/);
+  });
+
+  /** A runner that makes the first `failures` background probes fail to start, as Windows now and then does, and runs everything else on `inner`. */
+  const probeFailing = (inner: NativeVerifiable, failures: number): NativeVerifiable & { failed: () => number } => {
+    let failed = 0;
+    return {
+      work: inner.work,
+      tmp: inner.tmp,
+      failed: () => failed,
+      run: async (program, args, request) => {
+        // The background probe is the only PowerShell the check starts, and it reads its script from stdin.
+        if (args.includes('-Command') && request.input !== undefined && failed < failures) {
+          failed += 1;
+          return { code: 1, stdout: Buffer.alloc(0), stderr: Buffer.from('the process could not be created (0xC0000142)'), timedOut: false, cancelled: false, clipped: false, report: null };
+        }
+        return inner.run(program, args, request);
+      },
+    };
+  };
+
+  it('tries the background check again when it did not start, and then passes a box that is sound', async () => {
+    const runner = probeFailing(box, 1);
+    const report = await verifyNativeTier(runner, sinks, { outside, interpreter: process.execPath });
+    assert.equal(runner.failed(), 1);
+    assert.deepEqual(report.evidence, [], report.evidence.join('\n'));
+    assert.equal(report.real, true);
+  });
+
+  it('fails closed when the background check never starts, and says how many tries and why', async () => {
+    const runner = probeFailing(box, 99);
+    const report = await verifyNativeTier(runner, sinks, { outside, interpreter: process.execPath });
+    assert.equal(runner.failed(), 3);
+    assert.equal(report.real, false);
+    assert.match(report.evidence.join('\n'), /No background process ran in the box after 3 tries.*exit 1.*0xC0000142/);
+  });
+
+  it('still catches a process that outlives the box when the first try of the check did not start', async () => {
+    const report = await verifyNativeTier(probeFailing(unconfined(box.work, box.tmp), 1), sinks, { outside, interpreter: process.execPath });
+    assert.equal(report.real, false);
+    assert.ok(report.evidence.some((line) => /kept running/.test(line)), report.evidence.join(' / '));
   });
 
   it('runs PowerShell in the copy, passes exit codes through, and gives the box no key from this process', async () => {

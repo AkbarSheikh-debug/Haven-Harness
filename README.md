@@ -72,6 +72,12 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 - A line REPL, a full-screen **TUI** with an approvals inbox, and headless `hn -p` for scripts and CI.
 - **ACP** for editors that speak the Agent Client Protocol, a JSON-RPC door, and `hn serve`, a loopback web UI hardened
   against DNS rebinding and CSRF.
+- A **VS Code extension** that shows every change the agent wants to make as a diff in VS Code's own diff editor and
+  writes nothing until you press **Allow once** ([docs/guide/vscode.md](docs/guide/vscode.md)).
+- A **GitHub Action**: a maintainer labels an issue and hn works on it in a verified box, then opens a pull request whose
+  description is a report of what the session did. The model's job holds no write token
+  ([docs/guide/github-action.md](docs/guide/github-action.md)).
+- `hn report <session id>`: a session's report, made from its tamper-evident log, for a pull request.
 
 **Models**
 - Anthropic, any OpenAI-compatible endpoint, and local models through **Ollama** (`--model ollama/qwen3:14b`).

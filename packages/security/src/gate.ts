@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { HnError, type EventType } from '@hn/core';
-import { MAX_CARD_BYTES, PromptLimiter, approvalHash } from './approval.ts';
+import { MAX_CARD_BYTES, PromptLimiter, approvalHash, changeDigest, type ProposedChange } from './approval.ts';
 import { analyzeBash, type BashAnalysis } from './bash-policy.ts';
 import type { BashParser } from './bash.ts';
 import { Jail, JailError } from './jail.ts';
@@ -45,6 +45,8 @@ export interface GateCall {
   readonly scripts?: Readonly<Record<string, string>>;
   /** The caller already knows a human must decide, for example a subprocess started from project data with no sandbox. */
   readonly requiresHuman?: boolean;
+  /** Builds the file change this call would make. Called only once every check has passed and a person is about to be asked. */
+  readonly preview?: () => Promise<ProposedChange | null>;
 }
 
 export interface ApprovalCard {
@@ -54,6 +56,8 @@ export interface ApprovalCard {
   readonly summary: string;
   readonly target?: string;
   readonly byteCount: number;
+  /** The file change, for a door that can show a diff (an editor). Absent for calls that change no file. */
+  readonly change?: ProposedChange;
   /** Only an exact, reversible edit may be remembered, and never one that needs a human. */
   readonly canRememberForSession: boolean;
 }
@@ -359,6 +363,7 @@ export class Gate {
       return { kind: 'unavailable', reason: 'Too many approval prompts in a short time, so prompting is paused. Ask the user how to proceed.' };
     }
 
+    const change = call.preview === undefined ? null : await call.preview().catch(() => null);
     const approvalId = randomUUID();
     const canRememberForSession = effect === 'reversible' && !requiresHuman;
     const card: ApprovalCard = {
@@ -367,10 +372,11 @@ export class Gate {
       effect,
       summary: call.summary,
       ...(call.target === undefined ? {} : { target: call.target }),
+      ...(change === null ? {} : { change }),
       byteCount: size,
       canRememberForSession,
     };
-    audit('approval/asked', { approvalId, callId: call.id, tool: call.tool, summary: call.summary, requiresHuman });
+    audit('approval/asked', { approvalId, callId: call.id, tool: call.tool, summary: call.summary, requiresHuman, ...(change === null ? {} : { changeDigest: changeDigest(change) }) });
 
     if (guardianMayDecide) {
       const answer = await guardian(card);

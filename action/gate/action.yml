@@ -1,0 +1,34 @@
+name: "hn gate"
+description: "Decides whether hn may work on a labelled issue: the label must have been added by a person with write access. Runs no model and no code from the repository."
+
+inputs:
+  label:
+    description: "The label that asks hn to work on an issue."
+    default: "hn"
+  token:
+    description: "The workflow's GITHUB_TOKEN. It is used only to read the labeler's role."
+    required: true
+  out:
+    description: "A folder to write task.json to."
+    required: true
+
+outputs:
+  proceed:
+    description: "true only when hn may go on."
+    value: ${{ steps.gate.outputs.proceed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: "24"
+        package-manager-cache: false
+    - id: gate
+      shell: bash
+      # Settings go in through the environment, never pasted into the command: an input (or an issue title) is text, not code.
+      run: node --disable-proto=throw "$GITHUB_ACTION_PATH/../../packages/action/src/main.ts" gate
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        HN_ACTION_LABEL: ${{ inputs.label }}
+        HN_ACTION_OUT: ${{ inputs.out }}

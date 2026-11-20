@@ -16,6 +16,7 @@ import { runTui } from './tui.ts';
 import { runControlCommand, runFleetCommand, runRalphCommand } from './commands.ts';
 import { serveRpc } from './rpc.ts';
 import { serveAcp } from './acp.ts';
+import { runReportCommand } from './report.ts';
 import { startServe } from './serve.ts';
 import { runScheduleCommand } from './schedules.ts';
 import { runSupervisorCommand } from './supervisor.ts';
@@ -144,6 +145,7 @@ async function main(): Promise<number> {
       team: { type: 'boolean' },
       sig: { type: 'string' },
       from: { type: 'string' },
+      'prompt-origin': { type: 'string' },
     },
   });
   if (values.version === true) {
@@ -201,6 +203,12 @@ Ctrl+C to stop.
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn acp cannot be started from inside an hn session.');
     await serveAcp(process.stdin, process.stdout, { keys, defaults: { model: values.model ?? DEFAULTS.mainModel, ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }), ...(values.window === undefined ? {} : { window: Number(values.window) }), ...(values['num-ctx'] === undefined ? {} : { numCtx: Number(values['num-ctx']) }) } });
     return 0;
+  }
+  // A session's report (Phase 12): what it did, from its tamper-evident log, for a pull request. Read-only, and not from inside a session.
+  if (positionals[0] === 'report' && values.print === undefined) {
+    if (nestedCommand) throw new HnError('NESTED_HN', 'hn report cannot be run from inside an hn session.');
+    if (positionals[1] === undefined) throw new HnError('BAD_COMMAND', 'hn report <session id> [--json]');
+    return runReportCommand({ sessionId: positionals[1], workdir: process.cwd(), json: values.json === true, out: (text) => process.stdout.write(text) });
   }
   // Updates (Phase 8, decision 12): only from a person's command line, never from inside a session or from project files.
   if (positionals[0] === 'update' && values.print === undefined) {
@@ -317,10 +325,12 @@ Ctrl+C to stop.
       : null;
   if (grant?.channel === true && channel === null) throw new HnError('BAD_GRANT', 'This child was granted a channel to its parent but has none, so it does not start.');
   if (headless && prompt !== undefined) {
+    // Only ever a way to say the prompt is less trusted than a person's own words. No value raises trust.
+    if (values['prompt-origin'] !== undefined && values['prompt-origin'] !== 'event') throw new HnError('BAD_ORIGIN', '--prompt-origin can only be "event": a prompt read from outside is never more trusted than that.');
     try {
       // A team member gets its team tools and its inbox over the same channel (11.5).
       const member = channel !== null && grant?.team !== undefined ? { memberTools: createMemberTools((request) => channel.team(request)), inbox: (deliver: (text: string, origin: string) => void) => channel.onInbox(deliver) } : {};
-      return await runPrint({ ...options, prompt, json: values.json === true, ...(channel === null ? {} : { routed: channel.approve, rateGate: channel.rate }), ...member }, keys);
+      return await runPrint({ ...options, prompt, json: values.json === true, ...(values['prompt-origin'] === 'event' ? { promptOrigin: 'event' as const } : {}), ...(channel === null ? {} : { routed: channel.approve, rateGate: channel.rate }), ...member }, keys);
     } finally {
       // The pipe keeps a child alive; it is closed once the report is written.
       if (channel !== null) process.disconnect?.();

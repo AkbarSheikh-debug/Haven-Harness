@@ -1,0 +1,22 @@
+{
+  "version": "1.147.0",
+  "commit": "8a14f0cc1b08d531eb83255ea3764ae22aa932b5",
+  "note": "The VS Code build the extension's tests run in. url and sha256 come from update.code.visualstudio.com/api/versions/<version>/<platform>/stable. A different build is a deliberate change here, not whatever is newest.",
+  "platforms": {
+    "win32-x64": {
+      "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/8a14f0cc1b08d531eb83255ea3764ae22aa932b5/VSCode-win32-x64-1.147.0.zip",
+      "sha256": "42d65f18009959964d7cff8ca6f33149a195d52c08622821c8c681a08469c26e",
+      "executable": "Code.exe"
+    },
+    "linux-x64": {
+      "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/8a14f0cc1b08d531eb83255ea3764ae22aa932b5/code-stable-x64-1794902874.tar.gz",
+      "sha256": "6fd8b14600f2a8ddb8b4833d8bf288f3dc4c34b2878d2c6c3fec7e16c81023bc",
+      "executable": "VSCode-linux-x64/code"
+    },
+    "darwin-arm64": {
+      "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/8a14f0cc1b08d531eb83255ea3764ae22aa932b5/VSCode-darwin-arm64.zip",
+      "sha256": "149d944feb599b076b48406b174e1c3cd1d510e9d673854777a20a6f4116a59a",
+      "executable": "Visual Studio Code.app/Contents/MacOS/Electron"
+    }
+  }
+}

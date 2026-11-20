@@ -1,0 +1,65 @@
+{
+  "name": "@hn/vscode",
+  "displayName": "Haven Harness",
+  "description": "Haven Harness in VS Code: ask the agent, see each change as a diff, and approve it once at a time.",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "publisher": "haven-harness",
+  "type": "module",
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.147.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Haven Harness reads instruction files, skills and hooks from the folder, which are text from whoever wrote the folder. It does nothing until you trust the folder."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Haven Harness works on a real folder on this computer."
+    }
+  },
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      { "command": "hn.ask", "title": "Ask the agent", "category": "hn" },
+      { "command": "hn.newSession", "title": "Start a new session", "category": "hn" },
+      { "command": "hn.resumeSession", "title": "Resume a session", "category": "hn" },
+      { "command": "hn.cancel", "title": "Stop the running turn", "category": "hn" },
+      { "command": "hn.stop", "title": "Close hn", "category": "hn" },
+      { "command": "hn.showOutput", "title": "Show the session output", "category": "hn" }
+    ],
+    "configuration": {
+      "title": "Haven Harness",
+      "properties": {
+        "hn.path": {
+          "type": "string",
+          "default": "hn",
+          "scope": "machine",
+          "markdownDescription": "The `hn` command to start. Only your own user settings can set it: a folder's `.vscode/settings.json` cannot choose what program runs."
+        },
+        "hn.model": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "The model to ask for (`--model`). Empty uses hn's own default. Only your own user settings can set it."
+        },
+        "hn.baseUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "A model server to use instead of the default (`--base-url`), for example a local Ollama. Only your own user settings can set it, because it decides where your code and prompts are sent."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@hn/testkit": "workspace:*",
+    "@types/vscode": "1.105.0"
+  }
+}

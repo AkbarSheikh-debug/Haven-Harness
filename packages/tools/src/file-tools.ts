@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { dirname, isAbsolute, join } from 'node:path';
-import { checkSyntax, introducedProblems, sentinelWriteProblem, syntaxNote } from '@hn/security';
+import { MAX_CHANGE_CHARS, checkSyntax, introducedProblems, sentinelWriteProblem, syntaxNote, type ProposedChange } from '@hn/security';
 import { decodeText, encodeText, type DecodedText } from './text.ts';
 import { ToolProblem, stringArg, type ToolArgs, type ToolContext, type ToolDefinition, type ToolResult } from './types.ts';
 
@@ -111,6 +111,38 @@ async function syntaxWarning(path: string, before: string | null, after: string)
   }
 }
 
+const cut = (text: string): { text: string; truncated: boolean } => (text.length > MAX_CHANGE_CHARS ? { text: text.slice(0, MAX_CHANGE_CHARS), truncated: true } : { text, truncated: false });
+
+/** The change a write would make: the file before (null when new) and the text that will be in it. */
+async function previewWrite(args: ToolArgs, context: Pick<ToolContext, 'workdir' | 'ops'>): Promise<ProposedChange | null> {
+  const path = stringArg(args, 'path');
+  const existing = await readExisting(absolute(context.workdir, path), context as ToolContext);
+  const decoded = existing === null ? null : decodeText(existing);
+  if (existing !== null && decoded === null) return null;
+  const before = decoded === null ? null : cut(decoded.text);
+  const after = cut(stringArg(args, 'content'));
+  return { path, oldText: before === null ? null : before.text, newText: after.text, partial: false, truncated: after.truncated || before?.truncated === true };
+}
+
+/** The change an edit would make: the whole file before and after when it fits, else just the replaced fragment. */
+async function previewEdit(args: ToolArgs, context: Pick<ToolContext, 'workdir' | 'ops'>): Promise<ProposedChange | null> {
+  const path = stringArg(args, 'path');
+  const existing = await readExisting(absolute(context.workdir, path), context as ToolContext);
+  const decoded = existing === null ? null : decodeText(existing);
+  if (decoded === null || stringArg(args, 'old_string') === '') return null;
+  let after: string;
+  try {
+    after = applyEdit(decoded, stringArg(args, 'old_string'), stringArg(args, 'new_string'), args['replace_all'] === true);
+  } catch {
+    // The edit will be refused when it runs; there is no change to show.
+    return null;
+  }
+  if (decoded.text.length <= MAX_CHANGE_CHARS && after.length <= MAX_CHANGE_CHARS) return { path, oldText: decoded.text, newText: after, partial: false, truncated: false };
+  const oldPart = cut(stringArg(args, 'old_string'));
+  const newPart = cut(stringArg(args, 'new_string'));
+  return { path, oldText: oldPart.text, newText: newPart.text, partial: true, truncated: oldPart.truncated || newPart.truncated };
+}
+
 function writeTool(observations: Observations): ToolDefinition {
   return {
     name: 'write_file',
@@ -125,6 +157,7 @@ function writeTool(observations: Observations): ToolDefinition {
     concurrencySafe: true,
     paths: (args) => [{ path: stringArg(args, 'path'), write: true }],
     summary: (args) => `write ${stringArg(args, 'path')} (${Buffer.byteLength(stringArg(args, 'content'))} bytes)`,
+    preview: previewWrite,
     execute: (args, context) => {
       const path = absolute(context.workdir, stringArg(args, 'path'));
       return observations.serialize(path, async () => {
@@ -184,6 +217,7 @@ function editTool(observations: Observations): ToolDefinition {
     effect: 'reversible',
     concurrencySafe: true,
     paths: (args) => [{ path: stringArg(args, 'path'), write: true }],
+    preview: previewEdit,
     summary: (args: ToolArgs) =>
       `edit ${stringArg(args, 'path')}\n--- old\n${stringArg(args, 'old_string')}\n+++ new\n${stringArg(args, 'new_string')}`,
     execute: (args, context): Promise<ToolResult> => {

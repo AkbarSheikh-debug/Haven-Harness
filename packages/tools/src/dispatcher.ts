@@ -222,6 +222,8 @@ class Dispatcher implements ToolDispatcher {
       const refusal = tool.refuse?.(args) ?? null;
       if (refusal !== null) return { content: refusal, isError: true, origin: 'harness' };
       const command = tool.command?.(args);
+      // For showing only. The gate builds it after its own checks, when it is about to ask; a preview that fails is no preview.
+      const preview = tool.preview;
       const decision = await this.#options.gate.check({
         id: call.id,
         tool: tool.name,
@@ -231,6 +233,7 @@ class Dispatcher implements ToolDispatcher {
         summary: tool.summary(args),
         ...(tool.target === undefined ? {} : { target: tool.target(args) }),
         ...(command === undefined ? {} : { command }),
+        ...(preview === undefined ? {} : { preview: () => preview.call(tool, args, { workdir: this.#options.workdir, ops: this.#options.ops }) }),
         ...(tool.requiresHuman?.(args) === true ? { requiresHuman: true } : {}),
       });
       if (decision.kind !== 'allowed-once') return { content: decision.reason, isError: true, origin: 'harness' };

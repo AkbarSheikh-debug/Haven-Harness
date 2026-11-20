@@ -1,0 +1,103 @@
+# Copy this to .github/workflows/hn-issue.yml in YOUR repository. A maintainer labels an issue "hn"; hn works on it in a
+# verified box and opens a pull request whose description is the session's report. Read docs/guide/github-action.md first.
+#
+# Replace <commit sha> with a full commit of Haven Harness you have read. Do not use a branch or tag you do not control.
+# Add a model key as the repository secret ANTHROPIC_API_KEY, made for this, with a spend cap.
+name: hn-issue
+
+on:
+  issues:
+    types: [labeled]
+
+# Nothing by default. Each job asks for exactly what it needs.
+permissions: {}
+
+# One run per issue at a time.
+concurrency:
+  group: hn-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  # 1. May hn run at all? Runs no model and no code from the repository.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      proceed: ${{ steps.gate.outputs.proceed }}
+    steps:
+      - id: gate
+        uses: AkbarSheikh-debug/Haven-Harness/action/gate@<commit sha>
+        with:
+          token: ${{ github.token }}
+          out: ${{ runner.temp }}/hn-task
+      - if: steps.gate.outputs.proceed == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hn-task
+          path: ${{ runner.temp }}/hn-task/task.json
+          if-no-files-found: error
+
+  # 2. The model works, in a verified box. This job has NO write token: it can read the repository and nothing else.
+  agent:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      complete: ${{ steps.agent.outputs.complete }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hn-task
+          path: ${{ runner.temp }}/hn-task
+      - id: agent
+        uses: AkbarSheikh-debug/Haven-Harness/action/agent@<commit sha>
+        with:
+          task: ${{ runner.temp }}/hn-task/task.json
+          out: ${{ runner.temp }}/hn-out
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hn-result
+          # Only these files leave the job: not hn's home folder, its log key, or its logs.
+          path: |
+            ${{ runner.temp }}/hn-out/hn.patch
+            ${{ runner.temp }}/hn-out/report.md
+            ${{ runner.temp }}/hn-out/result.json
+          if-no-files-found: warn
+
+  # 3. The only job with a write token. It runs no model and no command the model chose.
+  publish:
+    needs: [gate, agent]
+    if: needs.gate.outputs.proceed == 'true' && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # A clean checkout of the default branch, never of anything the agent produced.
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hn-task
+          path: ${{ runner.temp }}/hn-task
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: hn-result
+          path: ${{ runner.temp }}/hn-result
+      - uses: AkbarSheikh-debug/Haven-Harness/action/publish@<commit sha>
+        with:
+          # The task comes from the gate job, which ran no model; the result comes from the agent job and is checked.
+          task: ${{ runner.temp }}/hn-task/task.json
+          result: ${{ runner.temp }}/hn-result
+          token: ${{ github.token }}

@@ -1,0 +1,59 @@
+name: "hn agent"
+description: "Runs hn on the checked-out repository, in a verified box, for the issue the gate job accepted. Holds no write token: it only produces a patch and a report."
+
+inputs:
+  task:
+    description: "The task.json the gate job wrote."
+    required: true
+  out:
+    description: "A folder to write hn.patch, report.md and result.json to."
+    required: true
+  model:
+    description: "The model to use (--model). Empty uses hn's default."
+    default: ""
+  base-url:
+    description: "A model server to use instead of the default (--base-url)."
+    default: ""
+  anthropic-api-key:
+    description: "A model key made for this, with a spend cap. Hand it in as a secret."
+    default: ""
+
+outputs:
+  complete:
+    description: "true only when hn finished its turn."
+    value: ${{ steps.agent.outputs.complete }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: "24"
+        package-manager-cache: false
+    # hn is built from this repository until there is a signed package to install. This is the slow part.
+    - name: Install hn
+      shell: bash
+      working-directory: ${{ github.action_path }}/../..
+      run: |
+        corepack enable
+        pnpm install --frozen-lockfile --ignore-scripts
+        cargo build --release --manifest-path native/hn-sandbox/Cargo.toml
+    # The Linux box needs bubblewrap and user namespaces. Ubuntu 24.04 restricts them unless told otherwise. The runner is
+    # thrown away after the job, and hn will not start unless the box then passes its own check from outside.
+    - name: Make the box possible
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq bubblewrap
+        sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+    - id: agent
+      shell: bash
+      run: node --disable-proto=throw "$GITHUB_ACTION_PATH/../../packages/action/src/main.ts" agent
+      env:
+        HN_SCRIPT: ${{ github.action_path }}/../../packages/surfaces/bin/hn.mjs
+        HN_ACTION_TASK: ${{ inputs.task }}
+        HN_ACTION_OUT: ${{ inputs.out }}
+        HN_MODEL: ${{ inputs.model }}
+        HN_BASE_URL: ${{ inputs.base-url }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}

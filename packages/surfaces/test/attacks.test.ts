@@ -62,6 +62,16 @@ const BUILT_IN_PHASE_8 = ['modified_client_cannot_reach_denied_model', 'modified
 /** Phase 10 attacks: the claim that hn runs inside a benchmark container that is its only boundary. */
 const BUILT_IN_PHASE_10 = ['benchmark_container_refused_on_workstation', 'benchmark_container_needs_operator_allow_entry', 'benchmark_container_never_yolo'] as const;
 
+/** Phase 12 attacks: the editor extension against a hostile agent or folder, and the GitHub Action against a hostile issue. */
+const BUILT_IN_PHASE_12 = [
+  'editor_diff_shows_exact_bytes_written', 'editor_diff_reveals_hidden_characters', 'editor_agent_cannot_read_files_or_start_terminals', 'editor_agent_cannot_pick_allow_always',
+  'editor_oversized_line_and_garbage_contained', 'editor_reject_is_never_turned_into_allow', 'editor_text_flood_contained', 'editor_untrusted_folder_starts_nothing',
+  'editor_folder_settings_cannot_choose_binary_or_model_server', 'editor_installed_extension_not_run_in_untrusted_folder',
+  'issue_text_cannot_close_the_untrusted_frame', 'issue_text_cannot_become_a_command', 'issue_text_is_untrusted_event_not_instruction', 'issue_label_from_non_writer_runs_nothing',
+  'issue_planted_workflow_never_reaches_pull_request', 'github_token_never_reaches_hn', 'patch_with_symlink_submodule_binary_or_protected_path_refused', 'patch_to_protected_path_pushes_nothing',
+  'agent_job_holds_no_write_token', 'workflow_never_pastes_issue_text_into_a_command', 'report_text_cannot_link_or_mention', 'forged_log_report_refused',
+] as const;
+
 /** Names for features that belong to a later phase, so they cannot have a test yet. The phase is the one that must add it. */
 const LATER_PHASES: Readonly<Record<string, string>> = {
 };
@@ -95,8 +105,9 @@ describe('the attack suite for Phase 2', () => {
       assert.ok(!(BUILT_IN_PHASE_7 as readonly string[]).includes(name), `${name} is listed as both built and later`);
       assert.ok(!(BUILT_IN_PHASE_8 as readonly string[]).includes(name), `${name} is listed as both built and later`);
       assert.ok(!(BUILT_IN_PHASE_10 as readonly string[]).includes(name), `${name} is listed as both built and later`);
+      assert.ok(!(BUILT_IN_PHASE_12 as readonly string[]).includes(name), `${name} is listed as both built and later`);
     }
-    const all = [...BUILT_IN_PHASE_2, ...BUILT_IN_PHASE_3, ...BUILT_IN_PHASE_4, ...BUILT_IN_PHASE_5A, ...BUILT_IN_PHASE_5B, ...BUILT_IN_PHASE_6, ...BUILT_IN_PHASE_7, ...BUILT_IN_PHASE_8, ...BUILT_IN_PHASE_10, ...Object.keys(LATER_PHASES)];
+    const all = [...BUILT_IN_PHASE_2, ...BUILT_IN_PHASE_3, ...BUILT_IN_PHASE_4, ...BUILT_IN_PHASE_5A, ...BUILT_IN_PHASE_5B, ...BUILT_IN_PHASE_6, ...BUILT_IN_PHASE_7, ...BUILT_IN_PHASE_8, ...BUILT_IN_PHASE_10, ...BUILT_IN_PHASE_12, ...Object.keys(LATER_PHASES)];
     assert.equal(new Set(all).size, all.length, 'a name is listed twice');
   });
 
@@ -140,6 +151,12 @@ describe('the attack suite for Phase 2', () => {
     const files = await testFiles();
     const missing = BUILT_IN_PHASE_10.filter((name) => !files.some((file) => new RegExp(`(?:it|describe)\\(\\s*['"\`][^'"\`\\n]*${name}`).test(file.text)));
     assert.deepEqual(missing, [], 'a built Phase 10 attack has no test');
+  });
+
+  it('has a test titled with every Phase 12 attack whose feature is built', async () => {
+    const files = await testFiles();
+    const missing = BUILT_IN_PHASE_12.filter((name) => !files.some((file) => new RegExp(`(?:it|describe)\\(\\s*['"\`][^'"\`\\n]*${name}`).test(file.text)));
+    assert.deepEqual(missing, [], 'a built Phase 12 attack has no test');
   });
 
   it('has a test titled with every Phase 4 attack whose feature is built', async () => {

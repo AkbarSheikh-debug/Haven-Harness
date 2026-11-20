@@ -23,3 +23,14 @@ export function sanitizeForDisplay(text: string): string {
     .replace(ZERO_WIDTH, '')
     .replace(TAG_CHARACTERS, '');
 }
+
+const HIDDEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069\u200b-\u200d\u2060\ufeff]|[\u{e0000}-\u{e007f}]/gu;
+
+/**
+ * For text a person must judge before saying yes, such as a file diff in an editor. Nothing is removed (stripping would
+ * show them text that differs from what runs); a control, bidi, zero-width or tag character is written out as a visible
+ * `\u{...}` escape. Newlines, tabs and carriage returns stay so the text can still be compared line by line.
+ */
+export function revealHidden(text: string): string {
+  return text.replace(HIDDEN, (char) => '\\u{' + (char.codePointAt(0) ?? 0).toString(16) + '}');
+}
