@@ -27,17 +27,17 @@ A layer the machine lacks is not a failed run. The box is reported as a lower ti
 
 ## Results
 
-Each row was produced by `scripts/box-evidence.ts`, run by CI on a GitHub-hosted runner and written to the job summary.
+Each runner row was produced by `scripts/box-evidence.ts` in [CI run 44653086359](https://github.com/AkbarSheikh-debug/Haven-Harness/actions/runs/44653086359), where the full test suite also passed on all three OSes. The result is written to the job summary and to a build annotation.
 
 | OS | Kernel | Where it ran | Box | Layers verified | Not applied |
 |---|---|---|---|---|---|
 | Windows 11 | 10.0.26100 | GitHub-hosted runner (`windows-latest`) | AppContainer, no capabilities, low integrity, Job Object | AppContainer, job object | none |
-| Ubuntu 26.04 | 7.0.0-1020-azure | GitHub-hosted runner (`ubuntu-latest`) | bubblewrap, every namespace unshared | namespaces, Landlock, seccomp | none |
+| Ubuntu 26.04 | 7.0.0-1019-azure | GitHub-hosted runner (`ubuntu-latest`) | bubblewrap, every namespace unshared | namespaces, Landlock, seccomp | none |
 | macOS | Darwin 25.6.0 | GitHub-hosted runner (`macos-latest`, arm64) | `sandbox-exec`, deny by default, no network | Seatbelt | process tree: a process that calls `setsid` can outlive the command |
 | Debian 12 (userland) | 6.18.58.1-microsoft-standard-WSL2 | a **privileged** container on a developer machine (Docker Desktop) | bubblewrap, every namespace unshared | namespaces, Landlock (ABI 7), seccomp | none |
 
 Two Linux kernels are listed because one result is a claim and two are evidence. A WSL2 kernel is not a distribution's
-kernel, so the Ubuntu run is the one to rely on.
+kernel, so the Ubuntu run is the one to rely on. Runner images change; the kernel in a later run may differ from the one above.
 
 ## What it took, and what it does not cover
 

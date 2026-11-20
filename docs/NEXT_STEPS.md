@@ -41,7 +41,7 @@ None of this has run yet, because it needs accounts and a key that belong to the
 
 ## 4. Next phases
 
-- **Verify the sandbox on every OS.** Today only Windows is verified from outside. The Linux and macOS boxes (bubblewrap, Seatbelt) are written and tested as text but have never run. Linux can be tried in a privileged container (bubblewrap fails in an ordinary one); macOS needs a Mac or a GitHub macOS runner. Add Landlock and seccomp on Linux. Make the three-OS CI jobs required.
+- **Make the three-OS CI jobs required.** The Linux box (bubblewrap, Landlock, seccomp) and the macOS box (Seatbelt) are built and verified from outside on GitHub runners (see [verified on every OS](guide/sandbox-verified.md)). Requiring the three `test` jobs is a branch-protection setting on GitHub, which belongs to the repository owner: Settings, Branches, add a rule for `main` and tick the three `test (...)` checks.
 - **Where people work:** a VS Code extension on the ACP door, and a GitHub Action that turns a labelled issue into a pull request with every command run in a verified box.
 - **Trust you can show:** a public page that lists every named attack with its test, a hall of fame for reported holes, and a replay and audit screen in `hn serve`.
 
@@ -51,4 +51,4 @@ None of this has run yet, because it needs accounts and a key that belong to the
 - A claimed outer sandbox (`--external-sandbox`, `--benchmark-container`) is never verified and is capped at `dont-ask` with an explicit allow list, never `yolo`.
 - Model sampling is not fixed, so a benchmark task can come out differently on a rerun; the reproducibility check measures by how much.
 - Budgets can be overrun by up to the in-flight cap's worth of calls, and broker approvals live in memory.
-- Windows is the most-tested platform. Linux works (the package installs, the helper builds, tasks run in containers), but its sandbox is not yet verified.
+- Windows is the most-tested platform. The Linux and macOS boxes are verified on one runner image each plus a privileged Linux container; a distribution or kernel not listed in the evidence table has not been run. On macOS a process that calls `setsid` can outlive its command.
