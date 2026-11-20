@@ -80,6 +80,10 @@ export class Browser {
         const found = /DevTools listening on (ws:\/\/\S+)/.exec(text);
         if (found !== null) {
           clearTimeout(timer);
+          // Chrome's helper processes inherit this pipe and can outlive it; once the address is known nothing more is read, so the pipe
+          // must not be able to keep the test runner alive.
+          child.stderr?.removeAllListeners('data');
+          child.stderr?.destroy();
           resolve(found[1] as string);
         }
       });

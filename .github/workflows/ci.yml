@@ -59,6 +59,12 @@ jobs:
           echo "HN_VSCODE=$path" >> "$GITHUB_ENV"
           echo "HN_REQUIRE_VSCODE=1" >> "$GITHUB_ENV"
       - run: pnpm typecheck
+      # The replay screen's tests start a real browser and a real server process. Run on their own first, with a short limit, so a hang
+      # names itself in ten minutes instead of using the job's hour.
+      - name: Replay screen tests (real browser)
+        timeout-minutes: 10
+        shell: bash
+        run: node --disable-proto=throw --test --test-timeout=240000 packages/surfaces/test/replay-serve.test.ts packages/surfaces/test/replay-browser.test.ts
       - name: Run the tests
         shell: bash
         run: pnpm test 2>&1 | tee test.log

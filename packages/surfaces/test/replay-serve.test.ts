@@ -216,10 +216,12 @@ describe('the replay screen over HTTP', () => {
     await withTempDir(async (dir) => {
       const recorded = await recordSession(await realpath(dir), model);
       const homeBefore = await entries(recorded.home);
-      const launcher = fileURLToPath(new URL('../bin/hn.mjs', import.meta.url));
+      // The launcher only adds --disable-proto=throw and waits for the real process, so killing the launcher would leave the server running
+      // (and the test runner waiting on its pipes). Start the real entry point with the same flags.
+      const main = fileURLToPath(new URL('../src/main.ts', import.meta.url));
       const env: NodeJS.ProcessEnv = { ...process.env, HN_HOME: recorded.home };
       for (const name of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ELECTRON_RUN_AS_NODE']) delete env[name];
-      const child = spawn(process.execPath, [launcher, 'serve', '--replay'], { cwd: recorded.project, env, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn(process.execPath, ['--disable-proto=throw', '--no-warnings', main, 'serve', '--replay'], { cwd: recorded.project, env, stdio: ['ignore', 'pipe', 'pipe'] });
       let out = '';
       let err = '';
       child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString()));
