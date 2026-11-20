@@ -9,7 +9,8 @@ This is a first, working version of Haven Harness. This file is the list of what
 - Signed releases, an update verifier, and a one-command npm install that fetches a verified sandbox helper on first use.
 - A cost report by role and model, per-role model choice in `routing.json`, and a Harbor adapter with a resumable, spend-capped benchmark runner (`scripts/bench`, see [docs/guide/benchmarks.md](guide/benchmarks.md)).
 - A VS Code extension that shows each change as a diff and asks once ([guide](guide/vscode.md)), and a GitHub Action that turns a labelled issue into a pull request from a verified box ([guide](guide/github-action.md)), with `hn report` for the session report.
-- The full test suite passes (about 1,560 tests) and typechecks clean.
+- A public [attack catalog](guide/attacks.md) made from one registry (every attack has a test, and the build fails if the page, the registry and the tests disagree), a [hall of fame](guide/hall-of-fame.md) with a disclosure process in `SECURITY.md`, and a [replay and audit screen](guide/replay.md) (`hn serve --replay`) that steps through a session's tamper-evident log and shows a forged one as refused.
+- The full test suite passes and typechecks clean.
 
 ## 1. Finish the benchmarks (the biggest open item)
 
@@ -45,7 +46,9 @@ None of this has run yet, because it needs accounts and a key that belong to the
 - **Make the three-OS CI jobs required.** The Linux box (bubblewrap, Landlock, seccomp) and the macOS box (Seatbelt) are built and verified from outside on GitHub runners (see [verified on every OS](guide/sandbox-verified.md)). Requiring the three `test` jobs is a branch-protection setting on GitHub, which belongs to the repository owner: Settings, Branches, add a rule for `main` and tick the three `test (...)` checks.
 - **Try the Action on a real repository, watching.** It has never run on GitHub (see [the Action's guide](guide/github-action.md) for the three things that rest on documentation, not a test). Do it on a throwaway repository with a capped model key first.
 - **Publish the VS Code extension** (a Marketplace or Open VSX publisher account is yours), and test it on a second VS Code version. A box for editor sessions is not built: they run with the gate and your approvals only.
-- **Trust you can show:** a public page that lists every named attack with its test, a hall of fame for reported holes, and a replay and audit screen in `hn serve`.
+- **Replay for teams:** the replay screen reads one machine's logs with that machine's key. A team view over the broker's audit chain (search across sessions, who approved what, an export an auditor can check) is not built. Live tailing of a running session is not built either.
+- **Run the replay screen in more than Chrome.** It is tested only in headless Chrome.
+- **The first real report:** the hall of fame is empty because nobody has reported anything. Decide who watches the Security tab, and confirm the timelines and safe-harbour wording in `SECURITY.md` are ones you can keep.
 
 ## 5. Known limits
 

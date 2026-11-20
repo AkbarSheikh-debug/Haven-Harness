@@ -103,7 +103,7 @@ describe('hn serve', () => {
     assert.equal(upgrade.status, 403);
     const page = await call(port, 'GET', '/', { cookie });
     assert.equal(page.status, 200);
-    for (const [name, value] of [['x-frame-options', 'DENY'], ['x-content-type-options', 'nosniff'], ['referrer-policy', 'no-referrer']] as const) assert.equal(page.headers[name], value);
+    for (const [name, value] of [['x-frame-options', 'DENY'], ['x-content-type-options', 'nosniff'], ['referrer-policy', 'same-origin']] as const) assert.equal(page.headers[name], value);
     assert.match(String(page.headers['content-security-policy']), /default-src 'self'; img-src 'self' data:; connect-src 'self'/);
   });
 

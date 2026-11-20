@@ -24,6 +24,7 @@ export * from './jsonrpc.ts';
 export * from './rpc.ts';
 export * from './rpc-client.ts';
 export * from './report.ts';
+export * from './replay.ts';
 export * from './commands.ts';
 export * from './fleet.ts';
 export * from './root-tools.ts';

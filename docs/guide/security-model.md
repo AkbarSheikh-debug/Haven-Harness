@@ -66,4 +66,5 @@ runs install scripts; every package is pinned by a sha512 hash; new versions wai
 ## Reporting a hole
 
 Please use [SECURITY.md](../../SECURITY.md), not a public issue. Every attack the project knows about is listed with
-its test in [attacks.md](attacks.md).
+its test in [attacks.md](attacks.md), people who report real holes are credited in the [hall of fame](hall-of-fame.md),
+and you can step through any recorded session, and see a forged log refused, with [the replay screen](replay.md).

@@ -50,7 +50,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'content-security-policy': CSP,
   'x-content-type-options': 'nosniff',
   'x-frame-options': 'DENY',
-  'referrer-policy': 'no-referrer',
+  'referrer-policy': 'same-origin',
   'cache-control': 'no-store',
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-resource-policy': 'same-origin',

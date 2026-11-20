@@ -9,8 +9,8 @@ because it says so. Every piece of text it did not get from you is tracked as un
 teams, a self-hosted **broker** holds the model keys and credentials, so the rules bind even a person who edits the
 client.
 
-> **Status: early, and moving fast.** The core is built and heavily tested (1,400+ tests, 75 named attacks with a
-> test each), but interfaces will still change. Windows is the most-tested platform today. Expect rough edges, and
+> **Status: early, and moving fast.** The core is built and heavily tested (1,700+ tests, 106 named attacks with a
+> test each, all [listed](docs/guide/attacks.md)), but interfaces will still change. Windows is the most-tested platform today. Expect rough edges, and
 > please report them.
 
 ![Haven Harness: a task done in a verified box, an approval card, and a refused escape](docs/demo.gif)
@@ -78,6 +78,11 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
   description is a report of what the session did. The model's job holds no write token
   ([docs/guide/github-action.md](docs/guide/github-action.md)).
 - `hn report <session id>`: a session's report, made from its tamper-evident log, for a pull request.
+- `hn serve --replay`: **step through any recorded session** in a browser: each gate decision, approval, taint change and
+  diff, with a forged or edited log shown as refused ([docs/guide/replay.md](docs/guide/replay.md)). Read-only, and it
+  starts no session.
+- **Trust you can check:** [every named attack, with its test](docs/guide/attacks.md), and a
+  [hall of fame](docs/guide/hall-of-fame.md) for people who report real holes.
 
 **Models**
 - Anthropic, any OpenAI-compatible endpoint, and local models through **Ollama** (`--model ollama/qwen3:14b`).
@@ -168,6 +173,7 @@ hn ralph "make the tests pass" --check "pnpm test" --max 10
 hn schedule add --name nightly --rrule "FREQ=DAILY" "summarise yesterday's commits"
 hn steer <session> "focus on the parser first"
 hn serve | hn acp | hn rpc           # web UI, editors, JSON-RPC
+hn serve --replay                    # step through recorded sessions (read-only)
 hn sandbox show | propose | build    # project image recipes
 hn prepare --image <name>@sha256:... # install dependencies through a locked-down proxy
 hn login <broker> | hn logout        # team mode

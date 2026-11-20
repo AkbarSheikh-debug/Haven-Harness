@@ -34,8 +34,10 @@ These are checked by tests, so a pull request that breaks one will fail CI.
    own and never decides its own permission.
 4. **Untrusted text keeps its origin.** Output that came from the web, an MCP server, a file in the workspace or a child
    agent must carry that origin.
-5. **A new defence gets a named attack.** Add the attack's name to `surfaces/test/attacks.test.ts` and a test whose
-   title contains that name.
+5. **A new defence gets a named attack.** Add it to the registry (`packages/testkit/src/attack-registry.ts`: a name, an
+   area and a one-sentence description), give it a test whose title starts `attack: <name>`, then run
+   `node --disable-proto=throw scripts/attack-catalog.ts` to rewrite the public page. The build fails if a name has no
+   test, a test is titled as an attack that is not listed, or the page is stale.
 6. **Programs by absolute path.** Never start a program by a bare name the project folder could shadow.
 
 And by convention:

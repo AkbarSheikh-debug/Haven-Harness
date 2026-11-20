@@ -17,7 +17,7 @@ import { runControlCommand, runFleetCommand, runRalphCommand } from './commands.
 import { serveRpc } from './rpc.ts';
 import { serveAcp } from './acp.ts';
 import { runReportCommand } from './report.ts';
-import { startServe } from './serve.ts';
+import { startReplayServe, startServe } from './serve.ts';
 import { runScheduleCommand } from './schedules.ts';
 import { runSupervisorCommand } from './supervisor.ts';
 import { recipeContext, resolveRecipeImage, runSandboxCommand } from './recipes.ts';
@@ -130,6 +130,7 @@ async function main(): Promise<number> {
       resume: { type: 'string' },
       continue: { type: 'boolean' },
       json: { type: 'boolean' },
+      replay: { type: 'boolean' },
       'dry-run': { type: 'boolean' },
       teams: { type: 'boolean' },
       results: { type: 'string' },
@@ -188,6 +189,19 @@ async function main(): Promise<number> {
   // The web door (decision 12): loopback only. The token is shown here, on the terminal, and never put in a URL.
   if (positionals[0] === 'serve' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn serve cannot be started from inside an hn session.');
+    // The replay and audit screen on its own: no model session, no key, read-only. It lists this folder's recorded sessions.
+    if (values.replay === true) {
+      const replayServed = await startReplayServe({ cwd: process.cwd() });
+      process.stdout.write(`hn is showing the sessions recorded for this folder at ${replayServed.url}replay
+This page can only read logs: it starts no session and runs nothing.
+Open it and paste this token (it is not in the address, on purpose):
+${replayServed.token}
+Ctrl+C to stop.
+`);
+      await new Promise<void>((resolve) => process.once('SIGINT', () => resolve()));
+      await replayServed.close();
+      return 0;
+    }
     const served = await startServe({ keys, cwd: process.cwd(), defaults: { model: values.model ?? DEFAULTS.mainModel, ...(values['base-url'] === undefined ? {} : { baseUrl: values['base-url'] }), ...(values.window === undefined ? {} : { window: Number(values.window) }) } });
     process.stdout.write(`hn is serving ${served.url}
 Open it and paste this token (it is not in the address, on purpose):

@@ -166,3 +166,4 @@ export function lastContent(request: FakeOpenAIRequest, role: string): string {
   return typeof found?.content === 'string' ? found.content : JSON.stringify(found?.content ?? '');
 }
 export * from './fake-idp.ts';
+export * from './attack-registry.ts';
