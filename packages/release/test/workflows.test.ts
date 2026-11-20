@@ -61,7 +61,7 @@ describe('the workflows', () => {
     for (const [name, text] of await workflows()) {
       const jobs = text.slice(text.indexOf('\njobs:'));
       const headers = [...jobs.matchAll(/^ {2}([\w-]+):\n/gm)].length;
-      assert.equal([...jobs.matchAll(/^\s+timeout-minutes:\s*\d+/gm)].length, headers, `${name}: every job needs timeout-minutes`);
+      assert.equal([...jobs.matchAll(/^ {4}timeout-minutes:\s*\d+/gm)].length, headers, `${name}: every job needs timeout-minutes (at the job's own level; a step's limit does not count)`);
       for (const checkout of text.matchAll(/actions\/checkout@[0-9a-f]{40}[^\n]*\n((?:\s+with:\n(?:\s+\S.*\n)+)?)/g)) assert.match(checkout[1] as string, /persist-credentials:\s*false/, `${name}: a checkout keeps its credentials`);
     }
   });
