@@ -40,8 +40,8 @@ const ROUTES = 'packages/surfaces/src/serve-replay.ts';
 const GUARD = 'packages/surfaces/src/serve-guard.ts';
 const RENDER = 'packages/surfaces/src/serve-render.ts';
 const MAIN = 'packages/surfaces/src/main.ts';
-const CATALOG = 'scripts/attack-catalog.ts';
-const HALL = 'scripts/hall-of-fame.ts';
+const CATALOG = 'packages/testkit/src/attack-catalog.ts';
+const HALL = 'packages/testkit/src/hall-of-fame.ts';
 
 const mutants: Mutant[] = [
   // The replay model.

@@ -21,7 +21,7 @@ import {
 import { Gate, Jail, isSecretPath, parsePolicy, type ApprovalCard } from '@hn/security';
 import { ContainerSandbox, loadMcpConfig, parseApproval, quotaProblem } from '@hn/surfaces';
 import { ATTACKS, withTempDir } from '@hn/testkit';
-import { expectedPage, reconcile, testTitles } from '../../../scripts/attack-catalog.ts';
+import { expectedPage, reconcile, testTitles } from '@hn/testkit';
 
 const packages = fileURLToPath(new URL('../../', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));

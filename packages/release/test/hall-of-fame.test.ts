@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { ATTACKS, withTempDir } from '@hn/testkit';
-import { expectedHallOfFame, renderHallOfFame, validateCredits, type Credit } from '../../../scripts/hall-of-fame.ts';
+import { expectedHallOfFame, renderHallOfFame, validateCredits, type Credit } from '@hn/testkit';
 
 const run = promisify(execFile);
 const REAL = fileURLToPath(new URL('../../../', import.meta.url));

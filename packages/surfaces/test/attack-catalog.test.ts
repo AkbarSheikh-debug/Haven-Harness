@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AREAS, ATTACKS, type Attack } from '@hn/testkit';
-import { hasProblems, namesIn, reconcile, renderCatalog } from '../../../scripts/attack-catalog.ts';
+import { hasProblems, namesIn, reconcile, renderCatalog } from '@hn/testkit';
 
 const entry = (name: string, area: string = AREAS[0], description = 'Something is tried and must not happen.'): Attack => ({ name, area, description });
 

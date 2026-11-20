@@ -69,6 +69,9 @@ export class Browser {
     // A container or a locked-down runner may not let the browser make its own sandbox; say so explicitly, never by default.
     const extra = process.env['HN_BROWSER_NO_SANDBOX'] === '1' ? ['--no-sandbox'] : [];
     const child = spawn(path, [...extra, '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--disable-gpu', '--disable-background-networking', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    // However the test ends, the browser must not outlive it: a stray browser keeps the test runner from exiting.
+    child.unref();
+    process.once('exit', () => child.kill());
     const endpoint = await new Promise<string>((resolve, reject) => {
       let text = '';
       const timer = setTimeout(() => reject(new Error(`The browser did not say where to connect within 60 seconds. It printed: ${text}`)), 60_000);

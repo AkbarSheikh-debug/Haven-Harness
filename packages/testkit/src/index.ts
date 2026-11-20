@@ -167,3 +167,5 @@ export function lastContent(request: FakeOpenAIRequest, role: string): string {
 }
 export * from './fake-idp.ts';
 export * from './attack-registry.ts';
+export * from './attack-catalog.ts';
+export * from './hall-of-fame.ts';
