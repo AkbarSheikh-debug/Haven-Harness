@@ -89,6 +89,8 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 | Tier | What | Where |
 |---|---|---|
 | **Windows native box** | An AppContainer with no capabilities, low integrity, in a Job Object that kills everything when it closes; built in Rust (`native/hn-sandbox`). | Windows 10/11 |
+| **Linux native box** | bubblewrap with every namespace unshared and no capability, plus Landlock and seccomp where the kernel has them, each verified from outside; `--sandbox native`. | Linux (needs user namespaces; see [verified on every OS](docs/guide/sandbox-verified.md)) |
+| **macOS native box** | A deny-by-default Seatbelt profile with no network, verified from outside; `--sandbox native`. | macOS |
 | **Container** | Docker with every confinement asked for, a pinned image, and a quota. Project images come from reviewed recipes (`.hn/sandbox.json`, a devcontainer or a Dockerfile) built with no network. | Any OS with Docker |
 | **Plugins** | Your own backend, spoken to over JSON-RPC. Whatever tier it claims is ignored; it earns one only by passing the canary. | Any |
 | **None** | The default on a fresh install. The gate still applies, and the banner says **NOT SANDBOXED**. | Any |
@@ -122,7 +124,7 @@ git clone https://github.com/AkbarSheikh-debug/haven-harness.git
 cd haven-harness
 corepack enable
 pnpm install --frozen-lockfile
-pnpm build:sandbox          # builds native/hn-sandbox (the safe file helper and the Windows box)
+pnpm build:sandbox          # builds native/hn-sandbox (the safe file helper, the Windows box, and Landlock and seccomp on Linux)
 node packages/surfaces/bin/hn.mjs doctor
 ```
 
@@ -152,7 +154,7 @@ From a source checkout, make an alias: `alias hn="node /path/to/haven-harness/pa
 hn                                   # interactive session in the current folder
 hn tui                               # full-screen session with an approvals inbox
 hn -p "fix the failing test"         # one headless turn, for scripts and CI
-hn -p "..." --sandbox native --mode yolo   # unattended, in a verified Windows box
+hn -p "..." --sandbox native --mode yolo   # unattended, in this OS's verified native box
 hn --resume <session> | --continue   # pick a session back up
 hn doctor                            # check the install, the sandbox and Docker
 hn fleet jobs.json --workers 4       # many repositories, one job file

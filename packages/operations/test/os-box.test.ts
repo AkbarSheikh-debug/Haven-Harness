@@ -199,6 +199,22 @@ describe('the stand-ins fail the outside-in check on any Linux or macOS host', {
     if (hostKind === 'linux') assert.match(report.evidence.join('\n'), /namespace, so it is not unshared/);
   });
 
+  it('a box that hides what the canary printed still fails: the listeners on this machine saw the connections, and what it says is never what clears it', async () => {
+    const host = unconfined(folders, hostKind);
+    const hiding: OsVerifiable = {
+      ...host,
+      run: async (program, args, request) => {
+        const ran = await host.run(program, args, request);
+        const quiet = ran.stdout.toString('utf8').split('\n').filter((line) => !/-ok\b/.test(line)).join('\n');
+        return { ...ran, stdout: Buffer.from(quiet) };
+      },
+    };
+    const report = await verifyOsBoxTier(hiding, sinks, { outside, interpreter: process.execPath });
+    assert.equal(report.real, false);
+    assert.deepEqual(report.selfReported, [], 'the box reported nothing, so only the host can have seen it');
+    assert.ok(report.hits.length > 0 && report.evidence.some((line) => /reached this machine/.test(line)), report.evidence.join(' / '));
+  });
+
   it('a "sandbox" that runs nothing: it prints a clean result, but no proof file was written', async () => {
     const report = await verifyOsBoxTier(runsNothing(folders, hostKind), sinks, { outside, interpreter: process.execPath });
     assert.equal(report.real, false);

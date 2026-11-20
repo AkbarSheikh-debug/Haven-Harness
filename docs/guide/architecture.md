@@ -27,7 +27,7 @@ plus one Rust crate for what Node cannot do safely on its own.
         operations: the only code that starts processes   packages/operations
             ├─ the host (no sandbox: the gate still applies)
             ├─ a container (Docker)
-            ├─ the Windows native box (native/hn-sandbox)
+            ├─ the native box of this OS (Windows AppContainer, Linux bubblewrap, macOS Seatbelt; native/hn-sandbox)
             └─ a backend plugin
             │
             ▼
@@ -71,7 +71,7 @@ plus one Rust crate for what Node cannot do safely on its own.
 | `config` | Defaults. |
 | `testkit` | A scripted fake model, a fake OpenAI-compatible server, a fake OpenID provider, seeded randomness, temp folders. |
 | `evals` | Benchmark tasks and their runner. |
-| `native/hn-sandbox` | Rust helper: path-safe file access, the OS keychain, and the Windows AppContainer box. |
+| `native/hn-sandbox` | Rust helper: path-safe file access, the OS keychain, the Windows AppContainer box, and Landlock and seccomp for the Linux box. |
 
 ## The Windows native box
 
@@ -83,6 +83,21 @@ The verifier (`operations/src/native-verifier.ts`) then decides from the outside
 the machine must see no connection or packet; a nonce file outside the box must stay unread; no file may appear outside
 the box; a proof file only the canary can produce must appear inside it; and a background process the canary started
 must stop when the box ends.
+
+## The Linux and macOS native boxes
+
+On Linux every command is one `bwrap` with every namespace unshared (user, pid, network, ipc, uts, cgroup, mount), no
+capability, the system read-only, and only the copy, a home and a temp folder writable. Where the kernel has them,
+`hn-sandbox confine` then puts two more layers on the process just before the command runs: **Landlock**, a filesystem
+rule the kernel holds, so a wrong mount is not the only thing between the box and a file; and **seccomp**, which makes
+`ptrace`, `mount`, `bpf`, `kexec_load` and similar calls fail. `hn-sandbox probe` asks the kernel what it supports, and a
+layer it lacks is left out and named, never assumed. On macOS every command is one `sandbox-exec` with a deny-by-default
+Seatbelt profile and no network.
+
+`operations/src/os-verifier.ts` decides from the outside, as for Windows, and adds: the namespaces the process is really in
+are compared with the host's own; the process holds no capability; and each layer the box says it applied has a probe only
+that layer stops (a write to `/run`, a tmpfs the mount table opens, for Landlock; `ptrace` answering EPERM for seccomp).
+A layer counts as verified only when its probe held. [Verified on every OS](sandbox-verified.md) lists what ran where.
 
 ## Testing philosophy
 

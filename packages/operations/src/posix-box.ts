@@ -64,7 +64,8 @@ export abstract class PosixBox {
   #launch(program: string, args: readonly string[], cwd: string, stdio: ('pipe' | 'ignore')[]): ChildProcess {
     const { file, args: argv } = this.wrap(program, args, cwd);
     // Its own process group, so one signal reaches the sandbox and everything it started.
-    return spawn(file, argv, { stdio, env: this.spawnEnv(), detached: true });
+    // The working folder is set here as well as inside the sandbox: Seatbelt has no option of its own for it.
+    return spawn(file, argv, { stdio, env: this.spawnEnv(), detached: true, cwd });
   }
 
   /** Runs one program in the box to completion, ending everything it started. */

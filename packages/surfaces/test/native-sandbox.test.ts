@@ -117,4 +117,28 @@ describe('a session in the Linux or macOS native box', { skip: !posix ? 'Linux a
       assert.equal((await readFile(join(project, 'made.txt'), 'utf8')).trim(), 'from the box');
     });
   });
+
+  it('refuses a box whose canary cannot run: nothing was verified, so no session opens and no file of the project is touched', { timeout: 180_000 }, async () => {
+    if (posixWhyNot !== null) assert.fail(posixWhyNot);
+    await withTempDir(async (dir) => {
+      const top = await realpath(dir);
+      const project = join(top, 'project');
+      await mkdir(project);
+      await writeFile(join(project, 'a.txt'), 'a\n');
+      const real = process.execPath;
+      // The interpreter that runs the canary is cat, which prints its input and proves nothing.
+      Object.defineProperty(process, 'execPath', { value: '/bin/cat', configurable: true, writable: true });
+      try {
+        const harness = new Harness({ workdir: project, mode: 'yolo', sandbox: { kind: 'native' }, model: 'fake', baseUrl: model.url, window: 64_000, verify: 'off', keys: KeyStore.capture({}), env: { HN_HOME: join(top, '.home') } });
+        try {
+          await assert.rejects(harness.run('make a file'), /did not pass the outside-in check/);
+        } finally {
+          await harness.close().catch(() => undefined);
+        }
+      } finally {
+        Object.defineProperty(process, 'execPath', { value: real, configurable: true, writable: true });
+      }
+      assert.deepEqual(await readdir(project), ['a.txt']);
+    });
+  });
 });

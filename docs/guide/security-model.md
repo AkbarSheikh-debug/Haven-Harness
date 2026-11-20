@@ -22,7 +22,7 @@ This page says what each layer does, and, as plainly, what it does **not** do.
 ## Tiers: what each covers and does not
 
 A tier counts only after the outside-in check passes on this machine: a canary inside the sandbox tries to reach the
-host on every address, read a file outside, write one, and leave a process running, while the host watches.
+host on every address, read a file outside, write one, and leave a process running, while the host watches. [What ran on which OS](sandbox-verified.md) is listed with where it ran.
 
 | Tier | Covers | Does **not** cover |
 |---|---|---|
@@ -30,7 +30,8 @@ host on every address, read a file outside, write one, and leave a process runni
 | **Container** (Docker, pinned image, network off) | Process, file and network isolation from the host; the project is a copy that comes back through review | Kernel or Docker escapes; a Docker Desktop older than 4.44.3 (`hn doctor` refuses it); anything you mount by hand |
 | **Windows native box** (AppContainer, no capabilities, Job Object) | No network to any host address, no reads of your files outside the box, no process survives the box, changes come back through review | Timing channels; RPC and named pipes to Windows services an AppContainer may still reach; reading Windows system folders (open to every app); programs whose folder denies AppContainers cannot run in it |
 | **Plugin backend** | Whatever its canary proves, at most the native tier, and never `yolo` | Anything it claims beyond what the canary saw |
-| **Linux and macOS boxes** | Built as command lines (bubblewrap, Seatbelt) | **Not yet run on those systems.** They are not a tier until the canary passes there. |
+| **Linux native box** (bubblewrap, every namespace unshared, no capability; Landlock and seccomp where the kernel has them) | No network to any host address, no reads of your files outside the box, no process survives the box, no `ptrace`, `mount` or `bpf` inside it, changes come back through review | Timing channels; kernel bugs (the box shares the host kernel); a kernel without Landlock or seccomp gives a lower tier that is named as such |
+| **macOS native box** (Seatbelt, deny by default, no network) | No network, no reads of your files outside the box, writes only to the copy, changes come back through review | A process that calls `setsid` can outlive its command; `sandbox-exec` is deprecated by Apple; timing channels |
 
 ## The worktree is hostile output
 
