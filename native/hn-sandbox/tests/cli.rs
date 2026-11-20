@@ -292,3 +292,137 @@ fn delete_does_not_go_through_a_link() {
     assert_eq!((out.code, out.error_code().as_str()), (3, "link"));
     assert!(s.outside.join("secret.txt").exists(), "the file outside was deleted through the link");
 }
+
+/// Landlock and seccomp are the kernel's, so these run against the real kernel, on Linux only. A layer the kernel does not
+/// have is skipped here by saying so; the box code reports such a box as a lower tier and never claims the layer.
+#[cfg(target_os = "linux")]
+mod confine {
+    use super::*;
+
+    const SYSTEM: [&str; 6] = ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/etc"];
+
+    fn probe() -> (i64, bool) {
+        let out = run(&["probe"], b"");
+        assert_eq!(out.code, 0, "{}", out.stderr);
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        let abi = text.split("\"landlock_abi\":").nth(1).unwrap().split(',').next().unwrap().parse().unwrap();
+        (abi, text.contains("\"seccomp\":true"))
+    }
+
+    fn confined(layers: &[&str], extra: &[&str], command: &str) -> Out {
+        let mut args: Vec<&str> = vec!["confine"];
+        args.extend_from_slice(layers);
+        for dir in SYSTEM {
+            args.extend(["--read", dir]);
+        }
+        args.extend_from_slice(extra);
+        args.extend(["--", "sh", "-c", command]);
+        run(&args, b"")
+    }
+
+    #[test]
+    fn probe_says_what_the_kernel_can_do() {
+        let (abi, _) = probe();
+        assert!(abi >= 0);
+    }
+
+    #[test]
+    fn landlock_stops_a_write_outside_the_allowed_folder_and_a_read_of_a_secret() {
+        let (abi, _) = probe();
+        if abi < 1 {
+            eprintln!("skipped: this kernel has no Landlock");
+            return;
+        }
+        let scratch = Scratch::new("landlock");
+        fs::write(scratch.outside.join("secret.txt"), "host secret").unwrap();
+        let project = scratch.project.to_str().unwrap();
+        let outside = scratch.outside.to_str().unwrap();
+
+        // Control: with no confine at all, the same command writes outside and reads the secret.
+        let plain = Command::new("sh").args(["-c", &format!("echo x > {outside}/plain.txt")]).status().unwrap();
+        assert!(plain.success());
+        assert!(scratch.outside.join("plain.txt").exists());
+
+        let wrote = confined(&["--landlock"], &["--write", project], &format!("echo x > {outside}/escape.txt"));
+        assert_ne!(wrote.code, 0, "a write outside the allowed folder must fail");
+        assert!(!scratch.outside.join("escape.txt").exists(), "the file outside was created");
+
+        let read = confined(&["--landlock"], &["--write", project], &format!("cat {outside}/secret.txt"));
+        assert_ne!(read.code, 0);
+        assert!(!String::from_utf8_lossy(&read.stdout).contains("host secret"));
+
+        let inside = confined(&["--landlock"], &["--write", project], &format!("echo ok > {project}/made.txt && mkdir {project}/d && cat {project}/made.txt"));
+        assert_eq!(inside.code, 0, "{}", inside.stderr);
+        assert!(String::from_utf8_lossy(&inside.stdout).contains("ok"));
+
+        // A folder granted read-only cannot be written.
+        let readonly = confined(&["--landlock"], &["--write", project, "--read", outside], &format!("echo x > {outside}/ro.txt"));
+        assert_ne!(readonly.code, 0);
+        assert!(!scratch.outside.join("ro.txt").exists());
+    }
+
+    #[test]
+    fn landlock_covers_what_a_mount_table_would_not_a_rename_into_and_out_of_the_folder() {
+        let (abi, _) = probe();
+        if abi < 1 {
+            return;
+        }
+        let scratch = Scratch::new("landlock-rename");
+        fs::write(scratch.outside.join("victim.txt"), "keep").unwrap();
+        let project = scratch.project.to_str().unwrap();
+        let outside = scratch.outside.to_str().unwrap();
+        let moved = confined(&["--landlock"], &["--write", project], &format!("mv {outside}/victim.txt {project}/victim.txt"));
+        assert_ne!(moved.code, 0, "moving a file out of a folder the box may not write must fail");
+        assert_eq!(fs::read_to_string(scratch.outside.join("victim.txt")).unwrap(), "keep");
+        let removed = confined(&["--landlock"], &["--write", project], &format!("rm {outside}/victim.txt"));
+        assert_ne!(removed.code, 0);
+        assert!(scratch.outside.join("victim.txt").exists());
+    }
+
+    #[test]
+    fn a_layer_that_was_asked_for_and_is_missing_is_refused_never_skipped() {
+        let (abi, seccomp) = probe();
+        let scratch = Scratch::new("missing");
+        let project = scratch.project.to_str().unwrap();
+        if abi < 1 {
+            let out = confined(&["--landlock"], &["--write", project], "true");
+            assert_eq!(out.error_code(), "unavailable");
+            assert_eq!(out.code, 125);
+        }
+        if !seccomp {
+            let out = confined(&["--seccomp"], &[], "true");
+            assert_eq!(out.error_code(), "unavailable");
+        }
+    }
+
+    /// `ptrace` with a request no kernel knows: the kernel answers EIO when it is allowed to look, so EPERM can only be the filter.
+    const PTRACE: &str = r#"perl -e 'use Errno; $r = syscall(%PTRACE%, -1, 0, 0, 0); print(($!+0), "\n")'"#;
+
+    fn ptrace_number() -> &'static str {
+        if cfg!(target_arch = "x86_64") { "101" } else { "117" }
+    }
+
+    #[test]
+    fn seccomp_makes_the_listed_calls_fail_and_leaves_ordinary_work_alone() {
+        let (_, seccomp) = probe();
+        if !seccomp {
+            eprintln!("skipped: this kernel has no seccomp filters");
+            return;
+        }
+        if Command::new("perl").arg("-e").arg("1").status().map(|status| status.success()).unwrap_or(false) == false {
+            eprintln!("skipped: perl is not installed, so no raw system call can be made");
+            return;
+        }
+        let command = PTRACE.replace("%PTRACE%", ptrace_number());
+        let free = Command::new("sh").args(["-c", &command]).output().unwrap();
+        assert_ne!(String::from_utf8_lossy(&free.stdout).trim(), "1", "without the filter ptrace must not answer EPERM; the check proves nothing");
+
+        let filtered = confined(&["--seccomp"], &[], &command);
+        assert_eq!(String::from_utf8_lossy(&filtered.stdout).trim(), "1", "ptrace must fail with EPERM inside the filter: {}", filtered.stderr);
+
+        // An ordinary build step still works under the filter: files, processes, pipes, a compiler-ish workload.
+        let work = confined(&["--seccomp"], &[], "mkdir -p /tmp/hn-seccomp-$$ && cd /tmp/hn-seccomp-$$ && echo a > f && cat f | tr a b | tee g && ls | wc -l && rm -rf /tmp/hn-seccomp-$$");
+        assert_eq!(work.code, 0, "{}", work.stderr);
+        assert!(String::from_utf8_lossy(&work.stdout).contains('b'));
+    }
+}

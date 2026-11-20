@@ -6,7 +6,9 @@ import {
   CheckpointStore,
   ContainerBox,
   NonceSinks,
+  SANDBOX_EXEC,
   createSafeFiles,
+  detectLinuxSupport,
   dockerIsUp,
   engineVersion,
   dockerDesktopProblem,
@@ -145,6 +147,19 @@ export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
     } else {
       add('container tier', 'ok', 'Docker is ready. Run `hn doctor --image name@sha256:...` to verify a real box from outside');
     }
+  }
+
+  // The native box of this OS. It is a tier of its own, claimed only when the outside-in check passes at session start.
+  if (process.platform === 'linux') {
+    const support = await detectLinuxSupport({ ...(helper === null ? {} : { helper }), env });
+    if (!support.namespaces) add('linux box', 'warn', `no native box here: ${support.namespaceProblem ?? 'bubblewrap cannot start'} Use --sandbox container instead`);
+    else {
+      const layers = ['namespaces: every one unshared', support.landlockAbi >= 1 ? `Landlock (ABI ${support.landlockAbi})` : 'Landlock: not in this kernel, so the box is a lower tier', support.seccomp ? 'seccomp' : 'seccomp: not in this kernel, so the box is a lower tier'];
+      add('linux box', support.landlockAbi >= 1 && support.seccomp ? 'ok' : 'warn', `${support.bwrap}; ${layers.join('; ')}. Each layer is verified from outside when a session starts`);
+    }
+  } else if (process.platform === 'darwin') {
+    const present = await access(SANDBOX_EXEC).then(() => true, () => false);
+    add('macos box', present ? 'ok' : 'warn', present ? `${SANDBOX_EXEC} (Seatbelt; Apple lists it as deprecated). It is verified from outside when a session starts. A process that calls setsid can outlive its command: that limit is part of this box` : `${SANDBOX_EXEC} was not found, so there is no native box. Use --sandbox container instead`);
   }
 
   // The key everything signed or sealed depends on.

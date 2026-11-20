@@ -130,7 +130,7 @@ export interface RunOutcome extends ExecResult {
 const GRACE_MS = 3_000;
 const MAX_CAPTURE = 64 * 1024 * 1024;
 
-function capture(): { add(chunk: Buffer): void; bytes(): Buffer; clipped(): boolean } {
+export function capture(): { add(chunk: Buffer): void; bytes(): Buffer; clipped(): boolean } {
   const chunks: Buffer[] = [];
   let size = 0;
   let clipped = false;
@@ -173,7 +173,7 @@ export class NativeBox {
 
   /** Makes the box folders. The copy itself is made by the caller into `work`. */
   static async open(options: NativeBoxOptions): Promise<NativeBox> {
-    if (process.platform !== 'win32') throw new HnError('NO_NATIVE_BOX', 'The native box in hn-sandbox is Windows only.');
+    if (process.platform !== 'win32') throw new HnError('NO_NATIVE_BOX', 'The AppContainer box in hn-sandbox is Windows only. Linux and macOS have their own native boxes (bubblewrap, Seatbelt).');
     if (!isAbsolute(options.helper)) throw new HnError('NO_NATIVE_BOX', 'hn-sandbox must be given by absolute path.');
     // A short (8.3) name in the path, as a runner's TEMP has, makes PowerShell expand it by listing folders above the
     // box, which the box may not read. The long form needs none of that.

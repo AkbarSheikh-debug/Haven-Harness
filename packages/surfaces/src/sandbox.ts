@@ -90,6 +90,8 @@ export interface FinishReport {
 /** A box that can be stopped and started again, with the tier re-verified every time. */
 export class ContainerSandbox {
   readonly kind = 'container';
+  readonly label = 'container';
+  readonly layers = '';
   /** The bash tool runs bash in the container, so the gate's bash parser applies. */
   readonly shell = 'bash';
   readonly #options: ContainerOptions;

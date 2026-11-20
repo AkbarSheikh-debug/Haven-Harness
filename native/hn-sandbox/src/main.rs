@@ -11,6 +11,7 @@
 //! kernels without `openat2`.
 
 mod box_args;
+mod confine;
 mod keychain;
 
 #[cfg(windows)]
@@ -133,7 +134,7 @@ struct Args {
 impl Args {
     fn parse() -> Res<Args> {
         let mut raw = std::env::args().skip(1);
-        let command = raw.next().ok_or_else(|| Fail::new("usage", "a command is required: read, write, keychain or version"))?;
+        let command = raw.next().ok_or_else(|| Fail::new("usage", "a command is required: read, write, keychain, run, confine, probe or version"))?;
         let mut args = Args { command, sub: None, values: Vec::new(), flags: Vec::new() };
         let rest: Vec<String> = raw.collect();
         let mut i = 0;
@@ -235,6 +236,13 @@ fn run() -> Res<()> {
 fn box_command(raw: &[String]) -> Option<Res<u32>> {
     match raw.first().map(String::as_str) {
         Some("run") => Some(box_args::parse_run(&raw[1..]).and_then(|spec| run_box(&spec))),
+        // Landlock and seccomp for a Linux box: applied to this process, which then becomes the program.
+        Some("confine") => Some(confine::parse_confine(&raw[1..]).and_then(|spec| confine::run(&spec))),
+        // What this kernel can apply, so a layer it lacks is reported and never assumed.
+        Some("probe") => Some({
+            println!("{}", confine::probe_json());
+            Ok(0)
+        }),
         Some("forget") => Some(match (raw.get(1).map(String::as_str), raw.get(2)) {
             (Some("--name"), Some(name)) => forget_box(name).map(|()| 0),
             _ => Err(Fail::new("usage", "forget needs --name")),

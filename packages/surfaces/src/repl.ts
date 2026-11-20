@@ -370,7 +370,7 @@ export async function runRepl(options: CliOptions, keys: KeyStore): Promise<numb
   repl.attach(session, resolvePaths(options.env).home);
   repl.delegation.setup(sessionOptions, keys, resolvePaths(options.env).home);
   for (const note of session.notes) out(`${note}\n`);
-  const where = session.sandbox === null ? NOT_SANDBOXED_BANNER : `Sandboxed: a verified ${session.sandbox.kind === 'native' ? `Windows box (tier ${session.tier}, shell: ${session.sandbox.shell})` : `container (tier ${session.tier})`}, working on a copy. Changes come back when you /exit.`;
+  const where = session.sandbox === null ? NOT_SANDBOXED_BANNER : `Sandboxed: a verified ${session.sandbox.kind === 'native' ? `${session.sandbox.label} (tier ${session.tier}, shell: ${session.sandbox.shell}; ${session.sandbox.layers})` : `container (tier ${session.tier})`}, working on a copy. Changes come back when you /exit.`;
   out(`${where}\nmode ${options.mode}, model ${options.model}. /exit to leave, /stop to stop a turn, /rollback to undo, /checkpoints to list, /implement <task> to delegate, /agents to list children.\n`);
   try {
     await repl.memory?.start();

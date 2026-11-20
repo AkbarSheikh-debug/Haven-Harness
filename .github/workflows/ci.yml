@@ -16,6 +16,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # A test that hangs fails the job in an hour, never the runner's six-hour limit.
     timeout-minutes: 60
+    env:
+      # Where this OS has a native box (Linux, macOS), a run in which the box cannot start fails and says why. It is never a quiet skip.
+      HN_REQUIRE_BOX: ${{ matrix.os == 'windows-latest' && '0' || '1' }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -28,6 +31,16 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       # The native helper (safe file access, keychain, Windows box). Rust is preinstalled on GitHub runners.
       - run: pnpm build:sandbox
+      # The helper's own tests: path safety on every OS, and on Linux the real Landlock and seccomp.
+      - run: pnpm test:sandbox
+      # Ubuntu 24.04 stops ordinary users creating namespaces unless told otherwise, and bubblewrap needs them.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          bwrap --version
+          uname -r
       # hn never pulls an image itself; the container tests use this one, so the runner pulls it first.
       - if: runner.os == 'Linux'
         run: docker pull alpine:3.20
@@ -40,3 +53,12 @@ jobs:
         if: failure()
         shell: bash
         run: awk '/failing tests:/{f=1} f' test.log | head -60 | tr -d '\r' | while IFS= read -r line; do echo "::error::$line"; done
+      # The outside-in check on this OS's own box, written to the job summary: where it ran, which layers held, which were not applied.
+      - name: Verify this OS's sandbox from outside
+        if: always()
+        shell: bash
+        run: node --disable-proto=throw scripts/box-evidence.ts | tee -a "$GITHUB_STEP_SUMMARY"
+      # A macOS box that cannot do something says why in the system log; print what Seatbelt denied.
+      - name: What Seatbelt denied
+        if: failure() && runner.os == 'macOS'
+        run: /usr/bin/log show --last 15m --style compact --predicate 'eventMessage CONTAINS "deny" AND eventMessage CONTAINS "Sandbox"' | tail -150
