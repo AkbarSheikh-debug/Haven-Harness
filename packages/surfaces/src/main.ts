@@ -24,10 +24,12 @@ import { recipeContext, resolveRecipeImage, runSandboxCommand } from './recipes.
 import { runPrepareCommand } from './prepare-door.ts';
 import { loadTasks, runBench } from './bench.ts';
 import { latestSession, type CliOptions } from './session.ts';
+import { auditDoor, serveAuditDoor } from './audit-main.ts';
 import { loadTeamLogin, runApprovalsCommand, runLoginCommand } from './team.ts';
 import { loadBrokerConfig, runPolicyTool, startBroker } from '@hn/broker';
 import { runUpdateCommand } from './update-door.ts';
 import { runSetupCommand } from './setup-door.ts';
+import { runTrustCommand } from './trust-cmd.ts';
 import { loadPriceFile } from './cost-summary.ts';
 
 /** The installed release's version, or where this copy runs from. */
@@ -131,6 +133,8 @@ async function main(): Promise<number> {
       continue: { type: 'boolean' },
       json: { type: 'boolean' },
       replay: { type: 'boolean' },
+      follow: { type: 'boolean' },
+      audit: { type: 'boolean' },
       'dry-run': { type: 'boolean' },
       teams: { type: 'boolean' },
       results: { type: 'string' },
@@ -147,6 +151,22 @@ async function main(): Promise<number> {
       sig: { type: 'string' },
       from: { type: 'string' },
       'prompt-origin': { type: 'string' },
+      user: { type: 'string' },
+      session: { type: 'string' },
+      type: { type: 'string' },
+      since: { type: 'string' },
+      after: { type: 'string' },
+      limit: { type: 'string' },
+      to: { type: 'string' },
+      out: { type: 'string' },
+      pub: { type: 'string' },
+      pins: { type: 'string' },
+      'key-file': { type: 'string' },
+      state: { type: 'string' },
+      purpose: { type: 'string' },
+      root: { type: 'string' },
+      trust: { type: 'string' },
+      roster: { type: 'string' },
     },
   });
   if (values.version === true) {
@@ -189,9 +209,11 @@ async function main(): Promise<number> {
   // The web door (decision 12): loopback only. The token is shown here, on the terminal, and never put in a URL.
   if (positionals[0] === 'serve' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn serve cannot be started from inside an hn session.');
+    // The team's audit in a browser (Phase 14).
+    if (values.audit === true) return serveAuditDoor(values, resolvePaths().home, false);
     // The replay and audit screen on its own: no model session, no key, read-only. It lists this folder's recorded sessions.
     if (values.replay === true) {
-      const replayServed = await startReplayServe({ cwd: process.cwd() });
+      const replayServed = await startReplayServe({ cwd: process.cwd(), ...(values.follow === true ? { follow: true } : {}) });
       process.stdout.write(`hn is showing the sessions recorded for this folder at ${replayServed.url}replay
 This page can only read logs: it starts no session and runs nothing.
 Open it and paste this token (it is not in the address, on purpose):
@@ -228,13 +250,20 @@ Ctrl+C to stop.
   if (positionals[0] === 'update' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn update cannot be run from inside an hn session.');
     const paths = resolvePaths();
-    return (await runUpdateCommand({ positionals, ...(values.sig === undefined ? {} : { sig: values.sig }), home: paths.home, logKey: paths.logKey, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
+    return (await runUpdateCommand({ positionals, ...(values.sig === undefined ? {} : { sig: values.sig }), ...(values.roster === undefined ? {} : { roster: values.roster }), home: paths.home, logKey: paths.logKey, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
+  }
+  // Which signing keys this machine trusts (Phase 15): only from a person's command line.
+  if (positionals[0] === 'trust' && values.print === undefined) {
+    if (nestedCommand) throw new HnError('NESTED_HN', 'hn trust cannot be run from inside an hn session.');
+    return (await runTrustCommand({ positionals, ...(values.purpose === undefined ? {} : { purpose: values.purpose }), env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
   }
   // Fetching or installing the sandbox helper (Phase 9): only from a person's command line.
   if (positionals[0] === 'setup' && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', 'hn setup cannot be run from inside an hn session.');
     return (await runSetupCommand({ positionals, ...(values.from === undefined ? {} : { from: values.from }), home: resolvePaths().home, env: process.env, out: (text) => process.stdout.write(text) })) ?? 1;
   }
+  // The team's audit (Phase 14): searching and checking what the broker recorded.
+  if (positionals[0] === 'audit' && values.print === undefined) return auditDoor(positionals, values, resolvePaths().home, nestedCommand);
   // Team mode (Phase 8): logging in to a broker, and running one. Never from inside a session.
   if ((positionals[0] === 'login' || positionals[0] === 'logout' || positionals[0] === 'broker' || positionals[0] === 'approvals') && values.print === undefined) {
     if (nestedCommand) throw new HnError('NESTED_HN', `hn ${positionals[0]} cannot be run from inside an hn session.`);
@@ -242,7 +271,7 @@ Ctrl+C to stop.
     if (positionals[0] !== 'broker') return (await runLoginCommand({ positionals, home: resolvePaths().home, out: (text) => process.stdout.write(text) })) ?? 1;
     const tool = await runPolicyTool(positionals, (text) => process.stdout.write(text));
     if (tool !== null) return tool;
-    if (positionals[1] === undefined) throw new HnError('BAD_COMMAND', 'hn broker <config.json> | keygen <folder> | sign <tree.json> <key.pem> <key id> <bundle.json>');
+    if (positionals[1] === undefined) throw new HnError('BAD_COMMAND', 'hn broker <config.json> | keygen <folder> | sign <tree.json> <key.pem> <key id> <bundle.json> | audit-key <state> <folder> | rotate-audit-key <state> <folder>');
     const broker = await startBroker({ config: await loadBrokerConfig(positionals[1]), keys });
     process.stdout.write(`hn broker is listening on ${broker.url}. Ctrl+C to stop.\n`);
     await new Promise<void>((resolve) => process.once('SIGINT', () => resolve()));

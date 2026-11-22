@@ -114,6 +114,24 @@ describe('layers only narrow', () => {
     assert.equal(set.mayApprove(person('lee', ['lead'])), false);
     assert.equal(new PolicySet([]).mayApprove(person('anyone', [])), true);
   });
+
+  it('lets someone read the audit only when a layer names readers and every layer that does includes them', () => {
+    const person = (user: string, roles: string[]): Identity => ({ user, ou: ['eng'], roles });
+    assert.equal(new PolicySet([]).mayReadAudit(person('anyone', ['auditor'])), false, 'silence means no, unlike approvers');
+    assert.equal(new PolicySet([layer({ approvers: { roles: ['lead'] } })]).mayReadAudit(person('lee', ['lead'])), false, 'being an approver is not being a reader');
+    const set = new PolicySet([layer({ audit: { readers: { roles: ['auditor'], users: ['dana'] } } }), layer({ name: 'ou' })]);
+    assert.equal(set.mayReadAudit(person('sam', ['auditor'])), true);
+    assert.equal(set.mayReadAudit(person('dana', [])), true);
+    assert.equal(set.mayReadAudit(person('lee', ['lead'])), false);
+    const narrowed = new PolicySet([layer({ audit: { readers: { roles: ['auditor'] } } }), layer({ audit: { readers: { users: ['dana'] } } })]);
+    assert.equal(narrowed.mayReadAudit(person('sam', ['auditor'])), false, 'a lower layer can only narrow');
+    assert.equal(narrowed.mayReadAudit(person('dana', ['auditor'])), true);
+  });
+
+  it('rejects a misspelt or malformed audit field instead of leaving it off', () => {
+    assert.deepEqual(parsePolicy({ version: 1, audit: { readers: { roles: ['auditor'] } } }).audit, { readers: { roles: ['auditor'] } });
+    for (const bad of [{ audit: { reader: {} } }, { audit: { readers: { role: ['a'] } } }, { audit: { readers: { roles: 'auditor' } } }, { audit: { readers: { users: [''] } } }, { audit: [] }]) assert.throws(() => parsePolicy({ version: 1, ...bad }), PolicyError);
+  });
 });
 
 describe('the gate step for policy', () => {

@@ -67,6 +67,7 @@ Most agents treat safety as a prompt: "please don't delete my home folder". Have
 - Model access, budgets, server-side tools (`git push`, MCP), approvals by someone other than the requester, and
   **team memory** with read gates by person, team and role, all decided on the broker.
 - Every decision in a keyed hash chain, shipped to your SIEM over OTLP; each laptop's audit head is anchored there.
+  Named readers can search it, follow it live and check an export offline ([docs/guide/team-audit.md](docs/guide/team-audit.md)).
 
 **Meet you where you work**
 - A line REPL, a full-screen **TUI** with an approvals inbox, and headless `hn -p` for scripts and CI.
@@ -173,7 +174,8 @@ hn ralph "make the tests pass" --check "pnpm test" --max 10
 hn schedule add --name nightly --rrule "FREQ=DAILY" "summarise yesterday's commits"
 hn steer <session> "focus on the parser first"
 hn serve | hn acp | hn rpc           # web UI, editors, JSON-RPC
-hn serve --replay                    # step through recorded sessions (read-only)
+hn serve --replay                    # step through recorded sessions (read-only); add --follow for a live one
+hn audit search --type broker/approval-   # the team's audit, from your broker (see docs/guide/team-audit.md)
 hn sandbox show | propose | build    # project image recipes
 hn prepare --image <name>@sha256:... # install dependencies through a locked-down proxy
 hn login <broker> | hn logout        # team mode

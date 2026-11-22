@@ -1,4 +1,4 @@
-// Builds a signed, reproducible release. A developer tool, not part of hn.
+// Builds a signed, reproducible release (Phase 8, decision 11). A developer tool, not part of hn.
 //
 //   node --disable-proto=throw scripts/release.ts --version 0.8.0 --key <ed25519 private key .pem> --key-id <id> --out <folder>
 //   node --disable-proto=throw scripts/release.ts --keygen <folder>     (writes release-key.pem, which never enters the repo, and release-key.pub.pem)
@@ -18,7 +18,7 @@ import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { MANIFEST_PATH, buildManifest, cycloneDx, manifestBytes, signManifest, writeTar, type SbomComponent } from '../packages/release/src/index.ts';
 
-import { ROOT, compileWorkspace, vendorClosure } from './build-common.ts';
+import { ROOT, compileWorkspace, trustFiles, vendorClosure } from './build-common.ts';
 const PRODUCT = 'haven-harness';
 
 function launcher(): string {
@@ -38,7 +38,7 @@ function launcher(): string {
   ].join('\n');
 }
 
-async function build(options: { version: string; key: string; keyId: string; out: string; epoch: number }): Promise<string> {
+async function build(options: { version: string; key: string; keyId: string; out: string; epoch: number; root?: string; rootId?: string; roster?: string }): Promise<string> {
   const created = new Date(options.epoch * 1000).toISOString();
   const { files, shipped } = await compileWorkspace(options.version, 'lib/node_modules');
   const vendor = await vendorClosure(shipped, 'lib/node_modules');
@@ -53,6 +53,7 @@ async function build(options: { version: string; key: string; keyId: string; out
   const privateKey = createPrivateKey(await readFile(options.key));
   const publicPem = createPublicKey(privateKey).export({ type: 'spki', format: 'pem' }).toString();
   files.push({ path: 'RELEASE-KEY.json', data: Buffer.from(`${JSON.stringify({ [options.keyId]: publicPem }, null, 2)}\n`) });
+  files.push(...(await trustFiles({ ...(options.root === undefined ? {} : { root: options.root }), ...(options.rootId === undefined ? {} : { rootId: options.rootId }), ...(options.roster === undefined ? {} : { roster: options.roster }), keyId: options.keyId, publicPem })));
   const sbom = Buffer.from(`${JSON.stringify(cycloneDx({ name: PRODUCT, version: options.version, created }, components), null, 2)}\n`);
   files.push({ path: 'sbom.cdx.json', data: sbom });
   const platform = `${process.platform}-${process.arch}`;
@@ -67,7 +68,7 @@ async function build(options: { version: string; key: string; keyId: string; out
 }
 
 async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { version: { type: 'string' }, key: { type: 'string' }, 'key-id': { type: 'string' }, out: { type: 'string' }, keygen: { type: 'string' } } });
+  const { values } = parseArgs({ options: { version: { type: 'string' }, key: { type: 'string' }, 'key-id': { type: 'string' }, out: { type: 'string' }, keygen: { type: 'string' }, root: { type: 'string' }, 'root-id': { type: 'string' }, roster: { type: 'string' } } });
   if (values.keygen !== undefined) {
     const pair = generateKeyPairSync('ed25519');
     await mkdir(values.keygen, { recursive: true });
@@ -80,7 +81,7 @@ async function main(): Promise<void> {
   const epochText = process.env['SOURCE_DATE_EPOCH'] ?? spawnSync('git', ['log', '-1', '--format=%ct'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
   const epoch = Number(epochText);
   if (!Number.isInteger(epoch) || epoch <= 0) throw new Error('No SOURCE_DATE_EPOCH and no commit time.');
-  process.stdout.write(`${await build({ version: values.version, key: values.key, keyId: values['key-id'], out: values.out, epoch })}\n`);
+  process.stdout.write(`${await build({ version: values.version, key: values.key, keyId: values['key-id'], out: values.out, epoch, ...(values.root === undefined ? {} : { root: values.root }), ...(values['root-id'] === undefined ? {} : { rootId: values['root-id'] }), ...(values.roster === undefined ? {} : { roster: values.roster }) })}\n`);
 }
 
 main().catch((error: unknown) => {

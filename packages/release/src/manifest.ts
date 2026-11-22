@@ -75,7 +75,7 @@ export function verifyRelease(archive: Buffer, signature: unknown, pinned: Reado
   if (typeof signature !== 'object' || signature === null || typeof (signature as ReleaseSignature).keyId !== 'string' || typeof (signature as ReleaseSignature).signature !== 'string') throw new ReleaseError('The release has no signature.');
   const { keyId, signature: sig } = signature as ReleaseSignature;
   const pinnedKey = pinned.get(keyId);
-  if (pinnedKey === undefined) throw new ReleaseError(`The release is signed with key "${keyId}", which this installation does not trust.`);
+  if (pinnedKey === undefined) throw new ReleaseError(`The release is signed with key "${keyId}", which this installation does not trust (it may have been revoked: hn trust show lists the keys trusted now).`);
   const entries = readTar(archive);
   const manifestFile = entries.find((entry) => entry.path === MANIFEST_PATH);
   if (manifestFile === undefined) throw new ReleaseError('The archive has no manifest.');

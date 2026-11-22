@@ -3,6 +3,9 @@ import { join } from 'node:path';
 import { HnError, sanitizeForDisplay } from '@hn/core';
 import { findHelper } from '@hn/operations';
 import { downloadHelper, verifyCachedHelper, type HelperInstall } from '@hn/release';
+import { loadOrCreateLogKey } from '@hn/session';
+import { activeKeys, loadTrust, type KeyTrust } from '@hn/security';
+import { resolvePaths } from '@hn/config';
 
 /**
  * Where the sandbox helper comes from (Phase 9, decisions 3 to 5). From a source checkout it is the one built in the
@@ -19,6 +22,29 @@ export interface ReleaseInfo {
   readonly version: string;
   /** Key id to public key PEM, from the installed package's RELEASE-KEY.json. */
   readonly pinned: ReadonlyMap<string, string>;
+  /** Ids of keys a root-signed roster revoked on this machine (Phase 15). Empty when the release has no root. */
+  readonly revoked: ReadonlySet<string>;
+  /** The trust state behind `pinned`, or null for a release that pins no root (its keys never change). */
+  readonly trust: KeyTrust | null;
+}
+
+/** The root an installed release pins and the roster it shipped, or null when it pins no root (the keys then never change). */
+export async function readPinnedRoot(root: string): Promise<{ root: { keyId: string; publicKey: string }; shipped?: unknown } | null> {
+  let text: string;
+  try {
+    text = await readFile(join(root, 'RELEASE-ROOT.json'), 'utf8');
+  } catch {
+    return null;
+  }
+  let parsed: { keyId?: unknown; publicKey?: unknown };
+  try {
+    parsed = JSON.parse(text) as { keyId?: unknown; publicKey?: unknown };
+  } catch {
+    throw new HnError('TRUST_ROOT_DAMAGED', 'RELEASE-ROOT.json is not valid JSON, so this release cannot say which keys to trust.');
+  }
+  if (typeof parsed.keyId !== 'string' || typeof parsed.publicKey !== 'string') throw new HnError('TRUST_ROOT_DAMAGED', 'RELEASE-ROOT.json is not a root key, so this release cannot say which keys to trust.');
+  const shipped = await readFile(join(root, 'RELEASE-ROSTER.json'), 'utf8').then((roster) => JSON.parse(roster) as unknown, () => undefined);
+  return { root: { keyId: parsed.keyId, publicKey: parsed.publicKey }, ...(shipped === undefined ? {} : { shipped }) };
 }
 
 /** The installed release this process runs from, or null when it runs from source. */
@@ -28,11 +54,18 @@ export async function readReleaseInfo(env: NodeJS.ProcessEnv): Promise<ReleaseIn
   try {
     const version = (JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8')) as { version?: unknown }).version;
     const keys = JSON.parse(await readFile(join(root, 'RELEASE-KEY.json'), 'utf8')) as Record<string, unknown>;
-    const pinned = new Map<string, string>();
+    let pinned = new Map<string, string>();
     for (const [id, pem] of Object.entries(keys)) if (typeof pem === 'string') pinned.set(id, pem);
     if (typeof version !== 'string' || pinned.size === 0) return null;
-    return { root, version, pinned };
-  } catch {
+    const trusted = await readPinnedRoot(root);
+    if (trusted === null) return { root, version, pinned, revoked: new Set(), trust: null };
+    // A damaged trust record throws here on purpose: nothing is trusted until it is repaired.
+    const paths = resolvePaths(env);
+    const trust = await loadTrust(join(paths.home, 'trust'), await loadOrCreateLogKey(paths.logKey), { purpose: 'release', root: trusted.root, pins: Object.fromEntries(pinned), ...(trusted.shipped === undefined ? {} : { shipped: trusted.shipped }) });
+    pinned = activeKeys(trust);
+    return { root, version, pinned, revoked: new Set(Object.keys(trust.revoked)), trust };
+  } catch (error) {
+    if (error instanceof HnError && (error.code.startsWith('TRUST_') || error.code === 'ROSTER_REFUSED')) throw error;
     return null;
   }
 }

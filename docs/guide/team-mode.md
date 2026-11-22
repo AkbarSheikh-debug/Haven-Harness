@@ -18,7 +18,8 @@ what runs on the broker is fully bound.
 | **Server-side tools** | `git_push` (the laptop sends a bundle of HEAD; the broker pushes with its token, never forced) and MCP servers over HTTP with credentials the broker holds. A server a person may not use is never contacted for them. |
 | **Approvals** | A push to a protected branch waits for an approver named in the requester's policy; with `separate`, never the requester. An approval covers one commit, once, within an hour. |
 | **Team memory** | Entries visible to their writer, an OU (and every OU below it), a role, or the organisation, as policy allows; a lifetime limit; expired entries never returned; text scanned first; anything written while a session held untrusted text kept for its writer only. |
-| **Audit** | Every decision in a keyed hash chain on the broker, optionally shipped to a SIEM as OTLP/HTTP JSON logs; each session's own audit head is anchored, so a cut tail on a laptop is caught. |
+| **Keys** | The policy signing key can be replaced or revoked with a root-signed roster (`policy.root` in `broker.json`); laptops pin the root at first login and follow it ([key rotation](key-rotation.md)) |
+| **Audit** | Every decision in a keyed hash chain on the broker, optionally shipped to a SIEM as OTLP/HTTP JSON logs; each session's own audit head is anchored, so a cut tail on a laptop is caught. Named readers can search it, follow it live and take an export that is checked offline against signed checkpoints: see [team audit](team-audit.md). |
 
 ## Set up a broker
 
@@ -40,6 +41,7 @@ what runs on the broker is fully bound.
        "budget": { "maxCostUsd": 20 },
        "git": { "repos": ["acme/*"], "protect": ["refs/heads/main"] },
        "approvers": { "roles": ["lead"], "separate": true },
+       "audit": { "readers": { "roles": ["auditor"] } },
        "memory": { "share": ["user", "ou"], "maxDays": 90 }
      },
      "ou": { "hr": { "version": 1, "name": "hr", "tools": { "deny": ["bash"] }, "memory": { "dream": false, "learn": false } } },
@@ -97,7 +99,8 @@ team session the broker's server-side tools (`git_push`, `mcp__<server>__<tool>`
 
 ## Operating notes
 
-- The broker's `state` folder holds its token key, token book, ledgers, audit chain and key, anchors and team memory.
+- The broker's `state` folder holds its token key, token book, ledgers, audit chain and key, the audit-signing key and its
+  checkpoints, anchors and team memory.
   Keep it on the broker only, readable by the broker's account only, and back it up.
 - To change policy, sign a new tree with a higher serial, replace the bundle file and restart the broker.
 - To cut someone off, remove them at your identity provider; their broker tokens expire within hours (login, 8 h by

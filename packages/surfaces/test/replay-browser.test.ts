@@ -6,7 +6,7 @@ import { KeyStore } from '@hn/provider';
 import { startReplayServe, startServe } from '@hn/surfaces';
 import { startFakeOpenAI, withTempDir, type FakeOpenAI } from '@hn/testkit';
 import { Browser, findBrowser, type Page } from './browser-fixture.ts';
-import { frameRanges, recordSession, startScriptedModel } from './replay-fixture.ts';
+import { forgedFrame, frameRanges, recordSession, startScriptedModel } from './replay-fixture.ts';
 
 /**
  * The replay screen in a REAL Chrome-family browser, because most of what it promises is about what a browser does with
@@ -215,6 +215,53 @@ describe('the replay screen in a real browser', () => {
         await browser.close();
         await served.close();
         await live.close();
+      }
+    });
+  });
+
+  it('attack: followed_log_forged - follows a growing log live in the page, and turns to REFUSED, showing nothing of the forged record, when one is appended', { timeout: 240_000 }, async (t) => {
+    if (browserPath === null) {
+      if (required) assert.fail('HN_REQUIRE_BROWSER=1 but no Chrome or Edge was found.');
+      return t.skip('no Chrome or Edge on this machine (set HN_BROWSER to one)');
+    }
+    await withTempDir(async (dir) => {
+      const top = await realpath(dir);
+      const recorded = await recordSession(top, model);
+      const whole = await readFile(recorded.file);
+      const ends = frameRanges(whole).map((range) => range.end);
+      // The session is "live": only its first records are on disk.
+      await writeFile(recorded.file, whole.subarray(0, ends[5]));
+      const served = await startReplayServe({ cwd: recorded.project, env: { HN_HOME: recorded.home }, follow: true });
+      const profile = join(top, 'browser-profile');
+      await mkdir(profile);
+      const browser = await Browser.launch(browserPath, profile);
+      try {
+        const page = await browser.page();
+        await page.goto(`http://127.0.0.1:${served.port}/replay`);
+        await page.eval(`(function(){document.querySelector("input[name=token]").value=${JSON.stringify(served.token)};document.querySelector("form").submit();})()`);
+        // Started with follow: the newest session is opened by itself, and the box is ticked.
+        await page.waitFor('document.getElementById("integrity").className === "verified" && document.querySelectorAll("#timeline li").length > 3 && document.getElementById("follow").checked === true');
+        const before = (await titles(page)).length;
+        // The rest of the log is written; the page picks it up without being touched, and, being at the end, moves with it.
+        await writeFile(recorded.file, whole.subarray(0, ends[10]));
+        await page.waitFor(`document.querySelectorAll("#timeline li").length > ${before}`);
+        const during = (await titles(page)).length;
+        assert.match((await text(page, '#position')) ?? '', new RegExp(`^${during} / ${during}$`), 'a follower that was at the end stays at the end');
+        assert.match((await text(page, '#live')) ?? '', /Live:/);
+        assert.equal(await text(page, '#integrity strong'), 'Log verified');
+
+        // A forged record is appended. The verdict changes, the steps are gone, and none of the forged text is on the page.
+        const payload = Buffer.from(JSON.stringify({ type: 'user/message', origin: 'user', data: { text: 'FORGED-LINE-DO-NOT-SHOW' } }));
+        await writeFile(recorded.file, Buffer.concat([whole.subarray(0, ends[10]), forgedFrame(payload)]));
+        await page.waitFor('document.getElementById("integrity").className === "refused"');
+        assert.match((await text(page, '#integrity')) ?? '', /REFUSED: this log does not verify/);
+        assert.equal(await count(page, '#timeline li'), 0);
+        assert.equal(await page.eval<boolean>('document.getElementById("follow").checked'), false, 'it stopped following');
+        assert.equal(await page.eval<boolean>('document.body.textContent.indexOf("FORGED-LINE-DO-NOT-SHOW") === -1'), true);
+        assert.deepEqual(page.problems, []);
+      } finally {
+        await browser.close();
+        await served.close();
       }
     });
   });

@@ -1,10 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { openAuditFile, type AuditEntry, type AuditFile, type ChainHead } from '@hn/security';
+import { openAuditFile, type AuditEntry, type AuditFile, type ChainHead, type Checkpoint } from '@hn/security';
 import { readJson, refusal, sendJson } from './http.ts';
 import type { Route } from './server.ts';
 import { writeAtomic } from './ledger.ts';
+import { openCheckpoints, type CheckpointBook } from './audit-checkpoints.ts';
+import { AuditStore } from './audit-store.ts';
+import { auditReadRoutes, type AuditReadOptions } from './audit-read.ts';
 
 /**
  * The broker's audit (decision 8). Every decision is a row in the broker's own keyed hash chain, on the broker's
@@ -21,10 +24,28 @@ export interface OtlpTarget {
   readonly headers: Readonly<Record<string, string>>;
 }
 
+export interface AnchorRecord extends ChainHead {
+  readonly user: string;
+  readonly session: string;
+  readonly at: number;
+}
+
 export interface BrokerAuditSink {
   record(type: string, data: Readonly<Record<string, unknown>>): void;
   /** Resolves when every row so far is on disk and every shipment so far has been tried. */
   flush(): Promise<void>;
+  /** Resolves when every row so far is on disk and in the index. */
+  settle(): Promise<void>;
+  /** What can be asked of the chain: an index over the rows, read by position. */
+  readonly store: AuditStore;
+  /** The broker's signed checkpoints and the key that signs them. */
+  readonly checkpoints: CheckpointBook;
+  /** Signs the chain's head as it stands once every row so far is on disk. Null while the chain is empty. */
+  checkpoint(): Promise<Checkpoint | null>;
+  /** The head each session last anchored. */
+  anchorList(): readonly AnchorRecord[];
+  /** Calls `listener` after each row is indexed. Returns the way to stop. */
+  watch(listener: () => void): () => void;
   readonly routes: readonly Route[];
   readonly key: Uint8Array;
   readonly path: string;
@@ -52,7 +73,15 @@ export function entriesFromOtlp(records: readonly Record<string, unknown>[]): Au
   });
 }
 
-export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise<BrokerAuditSink> {
+export interface AuditSinkOptions extends AuditReadOptions {
+  /** Sign the head after every this many rows (default 100). */
+  readonly checkpointEvery?: number;
+  /** Sign the head this often while rows are being added (default 60 s). */
+  readonly checkpointMs?: number;
+  readonly now?: () => number;
+}
+
+export async function openBrokerAudit(state: string, otlp?: OtlpTarget, options: AuditSinkOptions = {}): Promise<BrokerAuditSink> {
   await mkdir(state, { recursive: true, mode: 0o700 });
   const keyPath = join(state, 'audit.key');
   let key: Uint8Array;
@@ -64,7 +93,13 @@ export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise
   }
   const path = join(state, 'audit.jsonl');
   const file: AuditFile = await openAuditFile(path, key);
-  let writes: Promise<unknown> = Promise.resolve();
+  const store = new AuditStore(path);
+  await store.load();
+  const checkpoints = await openCheckpoints(state, (n) => store.macOf(n));
+  const every = options.checkpointEvery ?? 100;
+  const clock = options.now ?? Date.now;
+  const watchers = new Set<() => void>();
+  let lastSigned = checkpoints.list().reduce((most, item) => Math.max(most, item.n), 0);
   const queue: AuditEntry[] = [];
   let shipping: Promise<void> = Promise.resolve();
   let dropped = 0;
@@ -87,6 +122,22 @@ export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise
   const timer = otlp === undefined ? null : setInterval(() => void ship(), 2_000);
   timer?.unref();
 
+  let writes: Promise<unknown> = Promise.resolve();
+  const checkpoint = (): Promise<Checkpoint | null> => {
+    const next = writes.then(async () => {
+      const head = store.head;
+      if (head.n === 0) return null;
+      const signed = await checkpoints.sign(head, new Date(clock()));
+      lastSigned = Math.max(lastSigned, signed.n);
+      return signed;
+    });
+    return next;
+  };
+  const checkpointTimer = setInterval(() => {
+    if (store.head.n > lastSigned) void checkpoint().catch((error: unknown) => process.emitWarning(`hn broker: could not sign an audit checkpoint: ${error instanceof Error ? error.message : String(error)}`));
+  }, options.checkpointMs ?? 60_000);
+  checkpointTimer.unref();
+
   const anchorsPath = join(state, 'anchors.json');
   let anchors = new Map<string, ChainHead & { user: string; at: number }>();
   try {
@@ -101,8 +152,23 @@ export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise
   const sink: BrokerAuditSink = {
     key,
     path,
+    store,
+    checkpoints,
+    checkpoint,
+    settle: async () => {
+      await writes;
+    },
+    anchorList: () => [...anchors.entries()].map(([id, item]) => ({ n: item.n, mac: item.mac, user: item.user, session: id.slice(id.indexOf('\u0000') + 1), at: item.at })),
+    watch(listener) {
+      watchers.add(listener);
+      return () => watchers.delete(listener);
+    },
     record(type, data) {
       const written = file.record(type, data).then((entry) => {
+        store.add(entry);
+        for (const listener of [...watchers]) listener();
+        // The row itself is signed, not whatever the head has become by the time a signature is made.
+        if (every > 0 && entry.n % every === 0) void checkpoints.sign(entry, new Date(clock())).then((signed) => (lastSigned = Math.max(lastSigned, signed.n))).catch((error: unknown) => process.emitWarning(`hn broker: could not sign an audit checkpoint: ${error instanceof Error ? error.message : String(error)}`));
         if (otlp === undefined) return;
         if (queue.length >= MAX_QUEUE) {
           queue.shift();
@@ -119,6 +185,8 @@ export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise
     },
     close() {
       if (timer !== null) clearInterval(timer);
+      clearInterval(checkpointTimer);
+      watchers.clear();
     },
     routes: [
       {
@@ -154,5 +222,5 @@ export async function openBrokerAudit(state: string, otlp?: OtlpTarget): Promise
       },
     ],
   };
-  return sink;
+  return { ...sink, routes: [...sink.routes, ...auditReadRoutes(sink, options)] };
 }

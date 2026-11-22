@@ -1,4 +1,4 @@
-// Builds the npm package. A developer tool, not part of hn.
+// Builds the npm package (Phase 9, decisions 1 and 7). A developer tool, not part of hn.
 //
 //   node --disable-proto=throw scripts/pack-npm.ts --version 0.9.0 --key <ed25519 private key .pem> --key-id <id> --out <folder>
 //
@@ -17,7 +17,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { gzipSync } from 'node:zlib';
 import { MANIFEST_PATH, SIGNATURE_PATH, buildManifest, cycloneDx, manifestBytes, signManifest, writeTar, type TarFile } from '../packages/release/src/index.ts';
-import { ROOT, compileWorkspace, ripgrepPlatforms, vendorClosure } from './build-common.ts';
+import { ROOT, compileWorkspace, ripgrepPlatforms, trustFiles, vendorClosure } from './build-common.ts';
 
 const PRODUCT = 'haven-harness';
 const REPO = 'https://github.com/AkbarSheikh-debug/Haven-Harness';
@@ -37,7 +37,7 @@ function launcher(): string {
   ].join('\n');
 }
 
-export async function packNpm(options: { version: string; key: string; keyId: string; out: string; epoch: number }): Promise<string> {
+export async function packNpm(options: { version: string; key: string; keyId: string; out: string; epoch: number; root?: string; rootId?: string; roster?: string }): Promise<string> {
   const created = new Date(options.epoch * 1000).toISOString();
   const { files, shipped } = await compileWorkspace(options.version, 'node_modules');
   // npm does not fetch the optional dependencies of a bundled package (found by installing the packed tarball with
@@ -76,6 +76,7 @@ export async function packNpm(options: { version: string; key: string; keyId: st
   for (const name of ['LICENSE', 'NOTICE', 'README.md']) if (existsSync(join(ROOT, name))) files.push({ path: name, data: await readFile(join(ROOT, name)) });
   const privateKey = createPrivateKey(await readFile(options.key));
   files.push({ path: 'RELEASE-KEY.json', data: Buffer.from(`${JSON.stringify({ [options.keyId]: createPublicKey(privateKey).export({ type: 'spki', format: 'pem' }).toString() }, null, 2)}\n`) });
+  files.push(...(await trustFiles({ ...(options.root === undefined ? {} : { root: options.root }), ...(options.rootId === undefined ? {} : { rootId: options.rootId }), ...(options.roster === undefined ? {} : { roster: options.roster }), keyId: options.keyId, publicPem: createPublicKey(privateKey).export({ type: 'spki', format: 'pem' }).toString() })));
   const sbom = Buffer.from(`${JSON.stringify(cycloneDx({ name: PRODUCT, version: options.version, created }, vendor.components), null, 2)}\n`);
   files.push({ path: 'sbom.cdx.json', data: sbom });
   const manifest = buildManifest(files, { name: PRODUCT, version: options.version, platform: 'any', created });
@@ -92,12 +93,12 @@ export async function packNpm(options: { version: string; key: string; keyId: st
 }
 
 async function main(): Promise<void> {
-  const { values } = parseArgs({ options: { version: { type: 'string' }, key: { type: 'string' }, 'key-id': { type: 'string' }, out: { type: 'string' } } });
+  const { values } = parseArgs({ options: { version: { type: 'string' }, key: { type: 'string' }, 'key-id': { type: 'string' }, out: { type: 'string' }, root: { type: 'string' }, 'root-id': { type: 'string' }, roster: { type: 'string' } } });
   if (values.version === undefined || values.key === undefined || values['key-id'] === undefined || values.out === undefined) throw new Error('pack-npm.ts --version <x.y.z> --key <private .pem> --key-id <id> --out <folder>');
   const epochText = process.env['SOURCE_DATE_EPOCH'] ?? spawnSync('git', ['log', '-1', '--format=%ct'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
   const epoch = Number(epochText);
   if (!Number.isInteger(epoch) || epoch <= 0) throw new Error('No SOURCE_DATE_EPOCH and no commit time.');
-  process.stdout.write(`${await packNpm({ version: values.version, key: values.key, keyId: values['key-id'], out: values.out, epoch })}\n`);
+  process.stdout.write(`${await packNpm({ version: values.version, key: values.key, keyId: values['key-id'], out: values.out, epoch, ...(values.root === undefined ? {} : { root: values.root }), ...(values['root-id'] === undefined ? {} : { rootId: values['root-id'] }), ...(values.roster === undefined ? {} : { roster: values.roster }) })}\n`);
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {

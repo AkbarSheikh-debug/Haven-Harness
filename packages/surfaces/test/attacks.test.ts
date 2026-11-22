@@ -27,7 +27,7 @@ const packages = fileURLToPath(new URL('../../', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
 
 /** The most attacks the registry has ever held. It only goes up: deleting an entry to make a failing test pass is a change someone must see. */
-const REGISTRY_FLOOR = 106;
+const REGISTRY_FLOOR = 144;
 
 describe('the attack registry', () => {
   it('has a test titled with every attack it names, and no attack-titled test that it does not name', () => {

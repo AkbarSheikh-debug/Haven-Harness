@@ -4,7 +4,7 @@ import { createServer as createHttpServer, type IncomingMessage, type Server, ty
 import { createServer as createHttpsServer } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import { sanitizeForDisplay } from '@hn/core';
+import { HnError, sanitizeForDisplay } from '@hn/core';
 import type { KeyStore, ModelProvider } from '@hn/provider';
 import { layersFor, verifyPolicyTree, type Identity, type PolicySeen, type PolicySet, type PolicyTree } from '@hn/security';
 import type { BrokerConfig, Upstream } from './config.ts';
@@ -15,8 +15,9 @@ import { OidcClient, type DeviceStart } from './oidc-client.ts';
 import { TokenBook, type Authenticated, type TokenKind } from './tokens.ts';
 import { serverTools } from './server-tools.ts';
 import { brokerApprovals } from './approvals.ts';
-import { openBrokerAudit, type BrokerAuditSink } from './audit-sink.ts';
+import { openBrokerAudit, type AuditSinkOptions, type BrokerAuditSink } from './audit-sink.ts';
 import { openTeamMemory } from './team-memory.ts';
+import { brokerPolicyTrust, type PolicyTrust } from './policy-trust.ts';
 
 /**
  * `hn broker` (decision 1): one Node process holding everything a laptop must not hold. Each route authenticates
@@ -55,6 +56,8 @@ export interface BrokerOptions {
   readonly providerFor?: (upstream: Upstream) => ModelProvider;
   readonly routes?: readonly Route[];
   readonly audit?: BrokerAudit;
+  /** Tests: how often checkpoints are signed and tails beat. */
+  readonly auditOptions?: AuditSinkOptions;
   /** Decides an action that needs an approval (a push to a protected ref): null when approved, else why not. */
   readonly approve?: (context: BrokerContext, who: Authenticated, action: string) => Promise<string | null>;
 }
@@ -70,7 +73,7 @@ export interface Broker {
 const SESSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
 const MODEL_BODY = 32 * 1024 * 1024;
 
-async function loadTree(config: BrokerConfig, statePath: string): Promise<{ tree: PolicyTree; seen: PolicySeen }> {
+async function loadTree(config: BrokerConfig, statePath: string, trust: PolicyTrust): Promise<{ tree: PolicyTree; seen: PolicySeen }> {
   let last: PolicySeen | null = null;
   try {
     last = JSON.parse(await readFile(statePath, 'utf8')) as PolicySeen;
@@ -78,7 +81,9 @@ async function loadTree(config: BrokerConfig, statePath: string): Promise<{ tree
     // First start.
   }
   const bundle: unknown = JSON.parse(await readFile(config.policy.bundle, 'utf8'));
-  const loaded = verifyPolicyTree(bundle, new Map(Object.entries(config.policy.keys)), last);
+  const signer = typeof bundle === 'object' && bundle !== null ? (bundle as { keyId?: unknown }).keyId : undefined;
+  if (typeof signer === 'string' && trust.revoked.has(signer)) throw new HnError('POLICY_KEY_REVOKED', `The policy bundle is signed with the key "${sanitizeForDisplay(signer)}", which a root-signed roster has revoked. Sign it again with a current key.`);
+  const loaded = verifyPolicyTree(bundle, trust.keys, last);
   await writeFile(statePath, JSON.stringify(loaded.seen), { mode: 0o600 });
   return loaded;
 }
@@ -91,7 +96,8 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
   const rate = new RateWindow(config.limits?.requestsPerMinute ?? 120, now);
   const oidc = new OidcClient(config.oidc, { ...(options.fetch === undefined ? {} : { fetch: options.fetch }), now });
   const seenPath = join(config.state, 'policy-seen.json');
-  let tree = (await loadTree(config, seenPath)).tree;
+  let policyTrust = await brokerPolicyTrust(config);
+  let tree = (await loadTree(config, seenPath, policyTrust)).tree;
   const providers = new Map<string, ModelProvider>();
   const providerFor = (upstream: Upstream): ModelProvider => {
     let provider = providers.get(upstream.name);
@@ -104,7 +110,7 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
   const inFlight = new Map<string, number>();
   const maxInFlight = config.limits?.concurrent ?? 4;
   const otlp = config.audit?.otlp;
-  const sink = await openBrokerAudit(config.state, otlp === undefined ? undefined : { url: otlp.url, headers: Object.fromEntries(Object.entries(otlp.headers).map(([header, variable]) => [header, config.secrets.get(variable) ?? ''])) });
+  const sink = await openBrokerAudit(config.state, otlp === undefined ? undefined : { url: otlp.url, headers: Object.fromEntries(Object.entries(otlp.headers).map(([header, variable]) => [header, config.secrets.get(variable) ?? ''])) }, { now, ...options.auditOptions });
 
   const context: BrokerContext = {
     config,
@@ -172,7 +178,7 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
         context.audit('broker/login', { user: result.identity.user, ou: result.identity.ou, roles: result.identity.roles });
         // The client names this sid when it uses the login token, as every token's session must be named.
         const caveats = (JSON.parse(Buffer.from(issued.token, 'base64url').toString('utf8')) as { caveats: string[] }).caveats;
-        sendJson(response, 200, { state: 'done', token: issued.token, expires: issued.expires, sid: caveats.find((item) => item.startsWith('sid='))?.slice(4), identity: result.identity, policyKeys: config.policy.keys });
+        sendJson(response, 200, { state: 'done', token: issued.token, expires: issued.expires, sid: caveats.find((item) => item.startsWith('sid='))?.slice(4), identity: result.identity, policyKeys: config.policy.keys, ...(config.policy.root === undefined ? {} : { policyRoot: config.policy.root }) });
       },
     },
     {
@@ -195,6 +201,15 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
       async handle(context_, request, response) {
         if (context_.auth(request, response, 'session') === null) return;
         sendJson(response, 200, JSON.parse(await readFile(config.policy.bundle, 'utf8')));
+      },
+    },
+    {
+      // The root-signed key roster (Phase 15). Public on purpose: it holds only public keys and a signature, and a
+      // client checks it against the root it pinned at login, so a forged copy does nothing.
+      method: 'GET',
+      path: '/v1/trust/policy',
+      async handle(_context, _request, response) {
+        sendJson(response, 200, policyTrust.roster ?? {});
       },
     },
     {
@@ -282,7 +297,10 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
     url: `${config.tls === undefined ? 'http' : 'https'}://${config.listen.host.includes(':') ? `[${config.listen.host}]` : config.listen.host}:${port}`,
     context,
     async reloadPolicy() {
-      tree = (await loadTree(config, seenPath)).tree;
+      const trusted = await brokerPolicyTrust(config);
+      const loaded = await loadTree(config, seenPath, trusted);
+      policyTrust = trusted;
+      tree = loaded.tree;
     },
     audit: sink,
     async close() {
@@ -291,6 +309,8 @@ export async function startBroker(options: BrokerOptions): Promise<Broker> {
         server.close(() => resolve());
       });
       await sink.flush();
+      // A clean stop leaves a signed word at the head.
+      await sink.checkpoint().catch(() => undefined);
       sink.close();
     },
   };

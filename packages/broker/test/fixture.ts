@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { parseBrokerConfig, startBroker, type Broker, type Route } from '@hn/broker';
 import { KeyStore } from '@hn/provider';
 import { signPolicyTree } from '@hn/security';
+import type { KeyObject } from 'node:crypto';
 import { startFakeIdp, startFakeOpenAI, type FakeIdp, type FakeOpenAI, type FakeOpenAIReply, type FakeOpenAIRequest } from '@hn/testkit';
 
 /** A whole team on loopback for tests: an identity provider, a model upstream, a signed policy and a broker. */
@@ -38,9 +39,15 @@ export interface Team {
   login(claims: Record<string, unknown>): Promise<Person>;
   /** Writes and signs a new policy tree and reloads it. */
   setPolicy(tree: Record<string, unknown>): Promise<void>;
+  /** Phase 15: the signing key of the starting policy, and a way to sign and load a tree with another key. */
+  readonly signer: KeyObject;
+  setPolicyWith(tree: Record<string, unknown>, keyId: string, key: KeyObject): Promise<void>;
+  /** Phase 15: writes a signed roster where the broker reads it, and reloads. */
+  setRoster(signed: unknown): Promise<void>;
   /** A raw request, as a modified client would send it. */
   raw(path: string, init: { method?: string; token?: string; session?: string; body?: unknown; headers?: Record<string, string> }): Promise<Response>;
-  close(): Promise<void>;
+  /** Stops everything; `keepDir` leaves the folder (and the broker's state in it) for a restart. */
+  close(keepDir?: boolean): Promise<void>;
 }
 
 export interface TeamOptions {
@@ -53,10 +60,15 @@ export interface TeamOptions {
   readonly audit?: Record<string, unknown>;
   readonly env?: NodeJS.ProcessEnv;
   readonly approve?: Parameters<typeof startBroker>[0]['approve'];
+  readonly auditOptions?: Parameters<typeof startBroker>[0]['auditOptions'];
+  /** Phase 15: reuse this folder (its state included) instead of making one, to restart a broker. */
+  readonly dir?: string;
+  /** Phase 15: pins this root for the policy keys. */
+  readonly policyRoot?: { readonly keyId: string; readonly publicKey: string };
 }
 
 export async function startTeam(options: TeamOptions = {}): Promise<Team> {
-  const dir = await mkdtemp(join(tmpdir(), 'hn-team-'));
+  const dir = options.dir ?? (await mkdtemp(join(tmpdir(), 'hn-team-')));
   const signer = generateKeyPairSync('ed25519');
   const idp = await startFakeIdp();
   const upstream = await startFakeOpenAI(options.decide ?? (() => ({ text: 'hello from upstream' })));
@@ -68,21 +80,30 @@ export async function startTeam(options: TeamOptions = {}): Promise<Team> {
     listen: { host: '127.0.0.1', port: 0 },
     state: join(dir, 'state'),
     oidc: { issuer: idp.issuer, clientId: idp.clientId, claims: { user: 'email', ou: 'department', roles: 'groups' } },
-    policy: { bundle: bundlePath, keys: { 'org-1': signer.publicKey.export({ type: 'spki', format: 'pem' }).toString() } },
+    policy: { bundle: bundlePath, keys: { 'org-1': signer.publicKey.export({ type: 'spki', format: 'pem' }).toString() }, ...(options.policyRoot === undefined ? {} : { root: options.policyRoot }) },
     upstreams: [{ name: 'fake', kind: 'openai-compatible', baseUrl: upstream.url, key: 'OPENAI_API_KEY', models: ['team-*'] }],
     ...(options.limits === undefined ? {} : { limits: options.limits }),
     ...(options.tools === undefined ? {} : { tools: options.tools }),
     ...(options.audit === undefined ? {} : { audit: options.audit }),
   }, { ...(options.env ?? {}) });
   const audit: { type: string; data: Record<string, unknown> }[] = [];
-  const broker = await startBroker({
-    config,
-    keys: KeyStore.capture({ OPENAI_API_KEY: UPSTREAM_KEY }),
-    ...(options.now === undefined ? {} : { now: options.now }),
-    ...(options.routes === undefined ? {} : { routes: options.routes(dir) }),
-    audit: (type, data) => audit.push({ type, data }),
-    ...(options.approve === undefined ? {} : { approve: options.approve }),
-  });
+  let broker: Broker;
+  try {
+    broker = await startBroker({
+      config,
+      keys: KeyStore.capture({ OPENAI_API_KEY: UPSTREAM_KEY }),
+      ...(options.now === undefined ? {} : { now: options.now }),
+      ...(options.routes === undefined ? {} : { routes: options.routes(dir) }),
+      audit: (type, data) => audit.push({ type, data }),
+      ...(options.approve === undefined ? {} : { approve: options.approve }),
+      ...(options.auditOptions === undefined ? {} : { auditOptions: options.auditOptions }),
+    });
+  } catch (error) {
+    // A broker that refuses to start must not leave the fake servers listening, or the test run never ends.
+    await upstream.close();
+    await idp.close();
+    throw error;
+  }
   const raw: Team['raw'] = (path, init) =>
     fetch(`${broker.url}${path}`, {
       method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
@@ -111,15 +132,24 @@ export async function startTeam(options: TeamOptions = {}): Promise<Team> {
         },
       };
     },
+    signer: signer.privateKey,
+    async setPolicyWith(tree, keyId, key) {
+      await writeFile(bundlePath, JSON.stringify(signPolicyTree(tree, keyId, key)));
+      await broker.reloadPolicy();
+    },
+    async setRoster(signed) {
+      await writeFile(join(dir, 'state', 'policy-roster.json'), JSON.stringify(signed));
+      await broker.reloadPolicy();
+    },
     async setPolicy(tree) {
       await writeTree(tree);
       await broker.reloadPolicy();
     },
-    async close() {
+    async close(keepDir = false) {
       await broker.close();
       await upstream.close();
       await idp.close();
-      await rm(dir, { recursive: true, force: true });
+      if (!keepDir) await rm(dir, { recursive: true, force: true });
     },
   };
 }

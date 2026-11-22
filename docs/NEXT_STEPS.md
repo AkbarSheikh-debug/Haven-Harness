@@ -9,7 +9,9 @@ This is a first, working version of Haven Harness. This file is the list of what
 - Signed releases, an update verifier, and a one-command npm install that fetches a verified sandbox helper on first use.
 - A cost report by role and model, per-role model choice in `routing.json`, and a Harbor adapter with a resumable, spend-capped benchmark runner (`scripts/bench`, see [docs/guide/benchmarks.md](guide/benchmarks.md)).
 - A VS Code extension that shows each change as a diff and asks once ([guide](guide/vscode.md)), and a GitHub Action that turns a labelled issue into a pull request from a verified box ([guide](guide/github-action.md)), with `hn report` for the session report.
-- A public [attack catalog](guide/attacks.md) made from one registry (every attack has a test, and the build fails if the page, the registry and the tests disagree), a [hall of fame](guide/hall-of-fame.md) with a disclosure process in `SECURITY.md`, and a [replay and audit screen](guide/replay.md) (`hn serve --replay`) that steps through a session's tamper-evident log and shows a forged one as refused.
+- A public [attack catalog](guide/attacks.md) made from one registry (every attack has a test, and the build fails if the page, the registry and the tests disagree), a [hall of fame](guide/hall-of-fame.md) with a disclosure process in `SECURITY.md`, and a [replay and audit screen](guide/replay.md) (`hn serve --replay`, with `--follow` for a running session) that steps through a session's tamper-evident log and shows a forged one as refused.
+- [Key rotation and revocation](guide/key-rotation.md): an offline root key signs rosters of trusted keys for the release, policy and audit-signing keys; `hn trust` signs, shows and applies them, a revoked key is refused everywhere it was trusted, and the audit key rotates by row window.
+- [Team audit](guide/team-audit.md): named readers search the broker's audit by person, session, type and time, see each approval as one line, follow it live, and take an export that `hn audit verify` checks offline against checkpoints the broker signed (`hn serve --audit` shows it in a browser).
 - The full test suite passes and typechecks clean.
 
 ## 1. Finish the benchmarks (the biggest open item)
@@ -38,7 +40,7 @@ None of this has run yet, because it needs accounts and a key that belong to the
 ## 3. Security work still open
 
 - **An independent security review.** The review packet is ready; the review itself needs someone outside the project.
-- Key rotation for the policy and release keys is by hand (no revocation list yet).
+- Key rotation and revocation exist ([guide](guide/key-rotation.md)); what is left is a threshold root (m of n people), a transparency log of rosters, and an outside review of the design.
 - Releases carry no sigstore provenance until they are built by CI.
 
 ## 4. Next phases
@@ -46,8 +48,8 @@ None of this has run yet, because it needs accounts and a key that belong to the
 - **Make the three-OS CI jobs required.** The Linux box (bubblewrap, Landlock, seccomp) and the macOS box (Seatbelt) are built and verified from outside on GitHub runners (see [verified on every OS](guide/sandbox-verified.md)). Requiring the three `test` jobs is a branch-protection setting on GitHub, which belongs to the repository owner: Settings, Branches, add a rule for `main` and tick the three `test (...)` checks.
 - **Try the Action on a real repository, watching.** It has never run on GitHub (see [the Action's guide](guide/github-action.md) for the three things that rest on documentation, not a test). Do it on a throwaway repository with a capped model key first.
 - **Publish the VS Code extension** (a Marketplace or Open VSX publisher account is yours), and test it on a second VS Code version. A box for editor sessions is not built: they run with the gate and your approvals only.
-- **Replay for teams:** the replay screen reads one machine's logs with that machine's key. A team view over the broker's audit chain (search across sessions, who approved what, an export an auditor can check) is not built. Live tailing of a running session is not built either.
-- **Run the replay screen in more than Chrome.** It is tested only in headless Chrome.
+- **Team audit, what is left:** there is no free-text search or alerting, and the broker does not hold session content (only anchors), so an auditor needs a person's own log and key to read one session. The broker's live follow is capped at eight people. Nothing here has had an outside review.
+- **Run the replay and auditor screens in more than Chrome.** Both are tested only in headless Chrome.
 - **The first real report:** the hall of fame is empty because nobody has reported anything. Decide who watches the Security tab, and confirm the timelines and safe-harbour wording in `SECURITY.md` are ones you can keep.
 
 ## 5. Known limits

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { HnError } from '@hn/core';
 import { KEY_ENV_NAMES, type KeyName } from '@hn/provider';
 import type { ClaimMapping } from '@hn/security';
@@ -31,7 +31,15 @@ export interface BrokerConfig {
   /** A folder only the broker's account can read: its token key, token book, ledgers and audit chain. */
   readonly state: string;
   readonly oidc: OidcConfig;
-  readonly policy: { readonly bundle: string; readonly keys: Readonly<Record<string, string>> };
+  readonly policy: {
+    readonly bundle: string;
+    /** The signing keys trusted at the start. With a `root` they are the starting point of the roster, not the last word. */
+    readonly keys: Readonly<Record<string, string>>;
+    /** The root key that signs this broker's key rosters (Phase 15). Clients pin it at their first login. */
+    readonly root?: { readonly keyId: string; readonly publicKey: string };
+    /** A root-signed roster file; defaults to `policy-roster.json` in the state folder. Read at start and on a reload. */
+    readonly roster?: string;
+  };
   readonly upstreams: readonly Upstream[];
   readonly limits?: { readonly requestsPerMinute?: number; readonly loginHours?: number; readonly sessionMinutes?: number; readonly concurrent?: number };
   /** Server-side tools (decision 6): MCP servers over HTTP and git remotes, each with credentials only the broker holds. */
@@ -103,7 +111,13 @@ export function parseBrokerConfig(value: unknown, env: NodeJS.ProcessEnv = proce
   const secret = secretEnv === undefined ? undefined : process.env[secretEnv];
   if (secretEnv !== undefined) delete process.env[secretEnv];
   const oidc: OidcConfig = { issuer: str(o['issuer'], 'oidc.issuer'), clientId: str(o['clientId'], 'oidc.clientId'), claims, ...(secret === undefined ? {} : { clientSecret: secret }), ...(o['scope'] === undefined ? {} : { scope: str(o['scope'], 'oidc.scope') }) };
-  const p = only(root['policy'], ['bundle', 'keys'], 'policy');
+  const p = only(root['policy'], ['bundle', 'keys', 'root', 'roster'], 'policy');
+  let policyRoot: { keyId: string; publicKey: string } | undefined;
+  if (p['root'] !== undefined) {
+    const r = only(p['root'], ['keyId', 'publicKey'], 'policy.root');
+    policyRoot = { keyId: str(r['keyId'], 'policy.root.keyId'), publicKey: str(r['publicKey'], 'policy.root.publicKey') };
+  }
+  if (p['roster'] !== undefined && policyRoot === undefined) throw new BrokerConfigError('policy.roster needs policy.root: a roster cannot be checked without the root that signs it.');
   const keys = only(p['keys'], Object.keys(isRecord(p['keys']) ? p['keys'] : {}), 'policy.keys');
   for (const [id, pem] of Object.entries(keys)) str(pem, `policy.keys.${id}`);
   if (Object.keys(keys).length === 0) throw new BrokerConfigError('policy.keys must pin at least one key.');
@@ -177,7 +191,7 @@ export function parseBrokerConfig(value: unknown, env: NodeJS.ProcessEnv = proce
       audit = { otlp: { url: target.href, headers: headers as Record<string, string> } };
     } else audit = {};
   }
-  return { secrets, ...(tools === undefined ? {} : { tools }), ...(audit === undefined ? {} : { audit }), url: url.href.replace(/\/$/, ''), listen: { host, port }, state, oidc, policy: { bundle: str(p['bundle'], 'policy.bundle'), keys: keys as Record<string, string> }, upstreams, ...(tls === undefined ? {} : { tls }), ...(limits === undefined ? {} : { limits }) };
+  return { secrets, ...(tools === undefined ? {} : { tools }), ...(audit === undefined ? {} : { audit }), url: url.href.replace(/\/$/, ''), listen: { host, port }, state, oidc, policy: { bundle: str(p['bundle'], 'policy.bundle'), keys: keys as Record<string, string>, ...(policyRoot === undefined ? {} : { root: policyRoot, roster: p['roster'] === undefined ? join(state, 'policy-roster.json') : str(p['roster'], 'policy.roster') }) }, upstreams, ...(tls === undefined ? {} : { tls }), ...(limits === undefined ? {} : { limits }) };
 }
 
 export async function loadBrokerConfig(path: string): Promise<BrokerConfig> {

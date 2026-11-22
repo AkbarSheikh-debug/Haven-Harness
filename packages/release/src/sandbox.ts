@@ -70,7 +70,7 @@ export function verifyHelperManifest(bytes: Buffer, signature: unknown, pinned: 
   if (typeof signature !== 'object' || signature === null || typeof (signature as ReleaseSignature).keyId !== 'string' || typeof (signature as ReleaseSignature).signature !== 'string') throw new ReleaseError('The helper manifest has no signature.');
   const { keyId, signature: sig } = signature as ReleaseSignature;
   const pinnedKey = pinned.get(keyId);
-  if (pinnedKey === undefined) throw new ReleaseError(`The helper manifest is signed with key "${keyId}", which this installation does not trust.`);
+  if (pinnedKey === undefined) throw new ReleaseError(`The helper manifest is signed with key "${keyId}", which this installation does not trust (it may have been revoked: hn trust show lists the keys trusted now).`);
   let manifest: HelperManifest;
   try {
     manifest = JSON.parse(bytes.toString('utf8')) as HelperManifest;

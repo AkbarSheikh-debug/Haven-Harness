@@ -38,7 +38,7 @@ function canonical(value: unknown): string {
   return JSON.stringify(value) ?? 'null';
 }
 
-function macOf(key: Uint8Array, entry: Omit<AuditEntry, 'mac'>): string {
+export function macOf(key: Uint8Array, entry: Omit<AuditEntry, 'mac'>): string {
   return createHmac('sha256', key).update(canonical([entry.n, entry.ts, entry.type, entry.data, entry.prev])).digest('hex');
 }
 
@@ -127,13 +127,8 @@ export interface Verification {
 
 const ENTRY_KEYS = new Set(['n', 'ts', 'type', 'data', 'prev', 'mac']);
 
-function parseEntry(line: string): AuditEntry | null {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(line);
-  } catch {
-    return null;
-  }
+/** A row from already-parsed JSON, or null when it is not exactly a row: unknown fields, wrong types and arrays are all refused. */
+export function entryFromValue(raw: unknown): AuditEntry | null {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
   const record = raw as Record<string, unknown>;
   if (Object.keys(record).some((key) => !ENTRY_KEYS.has(key))) return null;
@@ -142,6 +137,14 @@ function parseEntry(line: string): AuditEntry | null {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
   if (typeof prev !== 'string' || typeof mac !== 'string') return null;
   return { n: n as number, ts, type, data: data as Record<string, unknown>, prev, mac };
+}
+
+function parseEntry(line: string): AuditEntry | null {
+  try {
+    return entryFromValue(JSON.parse(line));
+  } catch {
+    return null;
+  }
 }
 
 /**

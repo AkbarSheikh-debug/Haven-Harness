@@ -6,10 +6,10 @@
  * contain no backtick and no dollar-brace.
  */
 
-export const REPLAY_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>hn session replay</title><link rel="stylesheet" href="/replay.css"></head>
-<body><header><h1>hn session replay</h1><p class="sub">Step through what a session did, from its tamper-evident log. Read-only.</p></header>
+export const replayPage = (follow: boolean): string => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>hn session replay</title><link rel="stylesheet" href="/replay.css"></head>
+<body${follow ? ' data-follow="1"' : ''}><header><h1>hn session replay</h1><p class="sub">Step through what a session did, from its tamper-evident log. Read-only.</p></header>
 <main>
-<section id="picker"><label for="session">Session</label> <select id="session"></select> <span id="count"></span></section>
+<section id="picker"><label for="session">Session</label> <select id="session"></select> <span id="count"></span> <label class="follow"><input type="checkbox" id="follow"> Follow live</label> <span id="live" role="status" aria-live="polite"></span></section>
 <section id="integrity" role="status" aria-live="polite"></section>
 <section id="summary"></section>
 <section id="controls" hidden>
@@ -21,6 +21,8 @@ export const REPLAY_PAGE = `<!doctype html><html lang="en"><head><meta charset="
 <div id="layout" hidden><ol id="timeline" aria-label="Steps"></ol>
 <div id="panel"><div id="detail" aria-live="polite"></div><div id="state"></div></div></div>
 </main><script src="/replay.js"></script></body></html>`;
+
+export const REPLAY_PAGE = replayPage(false);
 
 export const REPLAY_CSS = `:root{--bg:#fafafa;--fg:#14181d;--muted:#59636e;--line:#d0d7de;--card:#fff;--ok:#1a7f37;--bad:#b00020;--warn:#9a6700;--addbg:#e6ffec;--delbg:#ffebe9;--sel:#ddf4ff}
 @media (prefers-color-scheme:dark){:root{--bg:#0e1116;--fg:#e6edf3;--muted:#9198a1;--line:#2b323b;--card:#161b22;--ok:#3fb950;--bad:#ff7b72;--warn:#d29922;--addbg:#12261e;--delbg:#2d1214;--sel:#102a43}}
@@ -53,6 +55,9 @@ export const REPLAY_JS = String.raw`'use strict';
   var pos = 0;
   var filter = 'all';
   var pendingStep = null;
+  var autoFollow = document.body.getAttribute('data-follow') === '1';
+  var followTimer = null;
+  var polling = false;
   var FILTERS = [
     ['all', 'Everything', function () { return true; }],
     ['gate', 'Gate decisions', function (s) { return s.kind === 'gate'; }],
@@ -91,12 +96,14 @@ export const REPLAY_JS = String.raw`'use strict';
       });
       $('count').textContent = data.sessions.length + ' recorded';
       if (wanted && SESSION_ID.test(wanted)) { select.value = wanted; openSession(wanted); }
+      else if (autoFollow && data.sessions.length > 0) { select.value = data.sessions[0].id; openSession(data.sessions[0].id); }
     });
   }
 
   // Everything of a previous session goes, before anything of the next one is shown, so a refused log can never sit beside another's steps.
   function wipe() {
     replay = null; visible = []; pos = 0;
+    $('live').textContent = '';
     ['summary', 'timeline', 'detail', 'state', 'filters'].forEach(function (name) { clear($(name)); });
     $('position').textContent = '';
     $('controls').hidden = true; $('layout').hidden = true;
@@ -109,7 +116,10 @@ export const REPLAY_JS = String.raw`'use strict';
     box.className = ''; box.textContent = 'Checking the log...';
     get('/replay/api/session/' + encodeURIComponent(id)).then(function (data) {
       replay = data;
+      // Opened to follow a live session: start at the newest step, and stay with it as more arrive.
+      if (autoFollow && replay.trust === 'verified' && pendingStep === null) pendingStep = Math.max(0, replay.steps.length - 1);
       render();
+      if (autoFollow && replay.trust === 'verified') startFollow();
     }).catch(function (error) {
       replay = null;
       box.className = 'refused'; box.textContent = 'Could not open this session: ' + error.message;
@@ -124,6 +134,17 @@ export const REPLAY_JS = String.raw`'use strict';
   }
 
   function render() {
+    var verified = replay.trust === 'verified';
+    header();
+    if (!verified) return;
+    buildFilters();
+    $('controls').hidden = false; $('layout').hidden = false;
+    pos = 0; setFilter('all', pendingStep === null ? 0 : pendingStep);
+    pendingStep = null;
+  }
+
+  // The verdict and the totals. Called again each time a followed log grows, so the verdict is always about everything shown.
+  function header() {
     var box = $('integrity');
     clear(box);
     var summary = $('summary');
@@ -133,12 +154,13 @@ export const REPLAY_JS = String.raw`'use strict';
       box.appendChild(el('strong', '', 'REFUSED: this log does not verify'));
       box.appendChild(document.createTextNode(replay.reason || ''));
       wipe();
+      stopFollow();
       return;
     }
     box.className = 'verified';
     box.appendChild(el('strong', '', 'Log verified'));
     var note = 'The HMAC chain over all ' + replay.events + ' recorded events checks out, so nothing was edited, removed, reordered or added without the key.';
-    if (replay.crashed) note += ' The file ends part-way through its last record, as a crash leaves it; what is shown is what verified.';
+    if (replay.crashed) note += followTimer === null ? ' The file ends part-way through its last record, as a crash leaves it; what is shown is what verified.' : ' The last record is still being written; what is shown is what verified.';
     box.appendChild(document.createTextNode(note));
     var t = replay.totals;
     summary.appendChild(stat('Started', replay.createdAt || 'unknown'));
@@ -151,10 +173,36 @@ export const REPLAY_JS = String.raw`'use strict';
     var hiddenCount = Object.keys(replay.hidden).reduce(function (n, k) { return n + replay.hidden[k]; }, 0);
     if (hiddenCount > 0) summary.appendChild(stat('Bookkeeping events not shown', hiddenCount));
     if (replay.truncated) summary.appendChild(stat('Shown', 'the first ' + replay.shownSteps + ' steps only'));
-    buildFilters();
-    $('controls').hidden = false; $('layout').hidden = false;
-    pos = 0; setFilter('all', pendingStep === null ? 0 : pendingStep);
-    pendingStep = null;
+  }
+
+  function stopFollow() {
+    if (followTimer !== null) { clearInterval(followTimer); followTimer = null; }
+    $('follow').checked = false;
+  }
+  function startFollow() {
+    if (followTimer !== null) return;
+    followTimer = setInterval(poll, 1500);
+    $('follow').checked = true;
+  }
+  // Asks only for what is new. The server verifies the whole log again each time and refuses if any of it changed.
+  function poll() {
+    if (polling || replay === null || replay.trust !== 'verified' || !replay.follow) return;
+    polling = true;
+    var id = replay.sessionId;
+    var f = replay.follow;
+    get('/replay/api/session/' + encodeURIComponent(id) + '?since=' + f.since + '&size=' + f.size + '&prefix=' + f.prefix).then(function (data) {
+      polling = false;
+      if (replay === null || replay.sessionId !== id || data.unchanged) return;
+      if (data.trust !== 'verified') { replay = data; render(); return; }
+      var atEnd = visible.length === 0 || pos === visible.length - 1;
+      var keep = currentIndex();
+      replay.steps = replay.steps.concat(data.steps);
+      ['events', 'crashed', 'hidden', 'totals', 'shownSteps', 'truncated', 'follow'].forEach(function (k) { replay[k] = data[k]; });
+      header();
+      buildFilters();
+      setFilter(filter, atEnd ? replay.steps.length : keep);
+      $('live').textContent = data.steps.length === 0 ? '' : (atEnd ? 'Live: ' : 'Live: ' + data.steps.length + ' new step(s) added at the end, ') + replay.steps.length + ' steps';
+    }).catch(function () { polling = false; });
   }
 
   function buildFilters() {
@@ -292,6 +340,7 @@ export const REPLAY_JS = String.raw`'use strict';
     for (var i = pos + 1; i < visible.length; i += 1) { if (test(replay.steps[visible[i]])) { select(i); return; } }
   }
 
+  $('follow').addEventListener('change', function (e) { if (e.target.checked) startFollow(); else stopFollow(); });
   $('session').addEventListener('change', function (e) { var id = e.target.value; if (id) openSession(id); });
   $('first').addEventListener('click', function () { select(0); });
   $('prev').addEventListener('click', function () { select(pos - 1); });

@@ -79,9 +79,14 @@ export async function runDoctor(options: DoctorOptions): Promise<Check[]> {
   add('__proto__ disabled', protoOff ? 'ok' : 'fail', protoOff ? 'started with --disable-proto=throw' : 'not disabled. Start hn through its launcher, which sets --disable-proto=throw');
 
   // The helper is what makes file access safe against a link swapped in mid-operation.
-  const installed = await readReleaseInfo(env);
+  let installed: Awaited<ReturnType<typeof readReleaseInfo>> = null;
+  try {
+    installed = await readReleaseInfo(env);
+  } catch (error) {
+    add('release trust', 'fail', message(error));
+  }
   if (installed !== null) {
-    const tree = await verifyInstalledTree(installed.root);
+    const tree = await verifyInstalledTree(installed.root, installed.trust === null ? undefined : { keys: installed.pinned, revoked: installed.revoked });
     add('release integrity', tree.ok ? 'ok' : 'fail', tree.ok ? `${tree.checked} files match the manifest signed for ${tree.version}` : `${tree.problems.join('; ')}. Reinstall hn`);
   }
   const helper = await resolveHelper({ env, repoRoot: options.repoRoot, home: paths.home, download: false }).catch((error: unknown) => {

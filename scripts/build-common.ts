@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { gunzipSync } from 'node:zlib';
 import { checkNpmIntegrity, readTar, type SbomComponent, type TarFile } from '../packages/release/src/index.ts';
+export { trustFiles } from '../packages/release/src/index.ts';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const PRODUCT = 'haven-harness';
@@ -142,3 +143,4 @@ export async function ripgrepPlatforms(version: string, prefix: string): Promise
   }
   return { files, names };
 }
+

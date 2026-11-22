@@ -64,7 +64,8 @@ The address contains the session and step (`#<session>:<step>`), so you can send
 - **It does not prove anything to someone who does not trust the machine.** Whoever holds the key can write a log that
   verifies. A log copied from another computer, with another key, shows as REFUSED here: this screen cannot tell "forged" from
   "made elsewhere". For a team that needs more, the [broker](team-mode.md) keeps its own audit chain with an anchor that
-  cannot go back.
+  cannot go back, and [team audit](team-audit.md) shows how an auditor reads and checks it. To watch a running session, start
+  with `hn serve --replay --follow` (see that page).
 - **A file change made by a shell command is not in "Files changed".** Only the file tools (`write_file`, `edit_file`) are
   listed as file changes. A command that writes a file is in the list of commands, with its text and result.
 - **Long text is cut.** A command, result or diff longer than a screenful is shortened for display and says so. A log with

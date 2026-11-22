@@ -3,7 +3,8 @@ import { userInfo } from 'node:os';
 import { join } from 'node:path';
 import { HnError, sanitizeForDisplay } from '@hn/core';
 import { createBrokerProvider, type ModelProvider } from '@hn/provider';
-import { PolicySet, layersFor, loadLocalPolicy, verifyPolicyTree, type AuditEntry, type AuditFile, type Identity, type PolicySeen } from '@hn/security';
+import { PolicySet, RosterError, activeKeys, layersFor, loadLocalPolicy, loadTrust, offerRoster, verifyPolicyTree, type AuditEntry, type AuditFile, type Identity, type PolicySeen, type RootKey, type TrustSource } from '@hn/security';
+import { loadOrCreateLogKey } from '@hn/session';
 
 /**
  * Team mode on the laptop (Phase 8). `hn login <broker>` runs the device flow through the broker and keeps a login
@@ -20,7 +21,44 @@ export interface TeamLogin {
   readonly identity: Identity;
   /** Pinned on first login. A later bundle signed by any other key is refused here. */
   readonly policyKeys: Readonly<Record<string, string>>;
+  /**
+   * The root key that signs the broker's key rosters (Phase 15), pinned at the first login to a broker and never
+   * taken from a broker you were already logged in to. Without it the keys above never change.
+   */
+  readonly policyRoot?: RootKey;
   readonly seen: PolicySeen | null;
+}
+
+const trustDir = (home: string): string => join(home, 'trust');
+
+/** Where the policy keys this machine trusts come from, or null when the broker pins no root. */
+export async function policyTrustSource(home: string): Promise<TrustSource | null> {
+  const login = await loadTeamLogin(home, 0).catch(() => null);
+  if (login === null || login.policyRoot === undefined) return null;
+  return { purpose: 'policy', root: login.policyRoot, pins: login.policyKeys };
+}
+
+/**
+ * The policy keys to trust now. With a pinned root the broker's roster is fetched and applied first: a roster that
+ * does not check out (another root, an older serial, a changed one) is an error, never ignored; a broker that
+ * cannot be reached for it leaves the last roster in force, revocations included.
+ */
+async function currentPolicyKeys(login: TeamLogin, home: string, fetcher: typeof fetch): Promise<{ keys: Map<string, string>; revoked: ReadonlySet<string> }> {
+  const source = await policyTrustSource(home);
+  if (source === null || login.policyRoot === undefined) return { keys: new Map(Object.entries(login.policyKeys)), revoked: new Set() };
+  const folder = trustDir(home);
+  const key = await loadOrCreateLogKey(join(home, 'log.key'));
+  let state = await loadTrust(folder, key, source);
+  const offered = await call(fetcher, `${login.url}/v1/trust/policy`, {}).catch(() => null);
+  if (offered !== null && offered['roster'] !== undefined) {
+    try {
+      state = (await offerRoster(folder, key, source, offered)).state;
+    } catch (error) {
+      if (error instanceof RosterError) throw new HnError('POLICY_ROSTER_REFUSED', `The broker's key roster was refused: ${sanitizeForDisplay(error.message)}`);
+      throw error;
+    }
+  }
+  return { keys: activeKeys(state), revoked: new Set(Object.keys(state.revoked)) };
 }
 
 const teamFile = (home: string): string => join(home, 'team.json');
@@ -92,8 +130,12 @@ export async function runLoginCommand(context: LoginContext): Promise<number | n
     const previous = await loadTeamLogin(context.home, 0).catch(() => null);
     const identity = poll['identity'] as Identity;
     // Keys are pinned the first time this broker is used, and kept after that, so a broker cannot swap them later.
-    const policyKeys = previous !== null && previous.url === base ? previous.policyKeys : (poll['policyKeys'] as Record<string, string>);
-    await saveTeamLogin(context.home, { url: base, loginToken: String(poll['token']), sid: String(poll['sid']), expires: Number(poll['expires']), identity, policyKeys, seen: previous !== null && previous.url === base ? previous.seen : null });
+    const again = previous !== null && previous.url === base;
+    const policyKeys = again ? previous.policyKeys : (poll['policyKeys'] as Record<string, string>);
+    // The root is pinned the same way, and only at the first login: a broker you are already using cannot hand you a new one.
+    const offeredRoot = poll['policyRoot'] as { keyId?: unknown; publicKey?: unknown } | undefined;
+    const policyRoot: RootKey | undefined = again ? previous.policyRoot : typeof offeredRoot?.keyId === 'string' && typeof offeredRoot.publicKey === 'string' ? { keyId: offeredRoot.keyId, publicKey: offeredRoot.publicKey } : undefined;
+    await saveTeamLogin(context.home, { url: base, loginToken: String(poll['token']), sid: String(poll['sid']), expires: Number(poll['expires']), identity, policyKeys, ...(policyRoot === undefined ? {} : { policyRoot }), seen: again ? previous.seen : null });
     context.out(`Logged in as ${sanitizeForDisplay(identity.user)}${identity.ou.length === 0 ? '' : ` (${sanitizeForDisplay(identity.ou.join('/'))})`}.\n`);
     return 0;
   }
@@ -147,7 +189,10 @@ export async function sessionPolicy(options: { team?: TeamLogin }, home: string,
   const login = options.team;
   const team = teamSession(login, session);
   const bundle = await call(team.fetcher, `${login.url}/v1/policy`, { token: await team.token(), session });
-  const { tree, seen } = verifyPolicyTree(bundle, new Map(Object.entries(login.policyKeys)), login.seen);
+  const trusted = await currentPolicyKeys(login, home, team.fetcher);
+  const signer = typeof bundle['keyId'] === 'string' ? bundle['keyId'] : '';
+  if (trusted.revoked.has(signer)) throw new HnError('POLICY_KEY_REVOKED', `The broker's policy is signed with the key "${sanitizeForDisplay(signer)}", which has been revoked. It is not applied. Tell whoever runs the broker to sign the policy with a current key.`);
+  const { tree, seen } = verifyPolicyTree(bundle, trusted.keys, login.seen);
   if (login.seen === null || seen.serial !== login.seen.serial) await saveTeamLogin(home, { ...login, seen });
   return { policy: new PolicySet([...layersFor(tree, login.identity).layers, ...local.layers]), identity: login.identity };
 }

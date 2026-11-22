@@ -39,6 +39,8 @@ export interface Policy {
   readonly budget?: { readonly maxCostUsd?: number; readonly maxTokens?: number };
   /** Who may answer an approval. Others can still ask, but their answer does not count. */
   readonly approvers?: { readonly users?: readonly string[]; readonly roles?: readonly string[]; /** The person who asked may not approve their own request. */ readonly separate?: boolean };
+  /** Who may read the broker's audit (search, export, tail). Nobody may unless a layer names them; every layer that names readers must include the reader. */
+  readonly audit?: { readonly readers?: { readonly users?: readonly string[]; readonly roles?: readonly string[] } };
   /** Pushes the broker makes for this person: repositories it may push to, and refs that need an approval first. */
   readonly git?: { readonly repos?: readonly string[]; readonly protect?: readonly string[] };
   /** Memory gates (slide 37): whether this person may write team memory, who it may be shared with, whether the agent may dream over or /learn from their sessions, and the most days an entry may live. */
@@ -46,7 +48,7 @@ export interface Policy {
 }
 
 const MODE_RANK: Readonly<Record<Mode, number>> = { 'read-only': 0, plan: 1, safe: 2, 'accept-edits': 3, smart: 4, 'dont-ask': 5, yolo: 6 };
-const KEYS = new Set(['version', 'name', 'tools', 'paths', 'mcp', 'models', 'maxMode', 'budget', 'approvers', 'git', 'memory']);
+const KEYS = new Set(['version', 'name', 'tools', 'paths', 'mcp', 'models', 'maxMode', 'budget', 'approvers', 'git', 'memory', 'audit']);
 const MAX_BYTES = 256 * 1024;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -93,6 +95,13 @@ export function parsePolicy(value: unknown): Policy {
     const approvers = only(value['approvers'], ['users', 'roles', 'separate'], 'approvers');
     if (approvers['separate'] !== undefined && typeof approvers['separate'] !== 'boolean') throw new PolicyError('approvers.separate must be true or false.');
     out.approvers = { ...(approvers['users'] === undefined ? {} : { users: strings(approvers['users'], 'approvers.users') as string[] }), ...(approvers['roles'] === undefined ? {} : { roles: strings(approvers['roles'], 'approvers.roles') as string[] }), ...(approvers['separate'] === true ? { separate: true } : {}) };
+  }
+  if (value['audit'] !== undefined) {
+    const audit = only(value['audit'], ['readers'], 'audit');
+    if (audit['readers'] !== undefined) {
+      const readers = only(audit['readers'], ['users', 'roles'], 'audit.readers');
+      out.audit = { readers: { ...(readers['users'] === undefined ? {} : { users: strings(readers['users'], 'audit.readers.users') as string[] }), ...(readers['roles'] === undefined ? {} : { roles: strings(readers['roles'], 'audit.readers.roles') as string[] }) } };
+    } else out.audit = {};
   }
   if (value['memory'] !== undefined) {
     const memory = only(value['memory'], ['write', 'share', 'dream', 'learn', 'maxDays'], 'memory');
@@ -179,6 +188,16 @@ export class PolicySet {
       const approvers = layer.approvers;
       if (approvers === undefined) return true;
       return (approvers.users ?? []).includes(identity.user) || (approvers.roles ?? []).some((role) => identity.roles.includes(role));
+    });
+  }
+
+  /** Whether this person may read the team's audit. Unlike approvers, silence means no: some layer must name readers, and every layer that does must include this person. */
+  mayReadAudit(identity: Identity): boolean {
+    const named = this.layers.filter((layer) => layer.audit?.readers !== undefined);
+    if (named.length === 0) return false;
+    return named.every((layer) => {
+      const readers = layer.audit?.readers as { users?: readonly string[]; roles?: readonly string[] };
+      return (readers.users ?? []).includes(identity.user) || (readers.roles ?? []).some((role) => identity.roles.includes(role));
     });
   }
 

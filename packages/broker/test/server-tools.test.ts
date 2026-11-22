@@ -48,7 +48,7 @@ async function fakeMcp(): Promise<FakeMcp> {
 }
 
 const tree = baseTree({
-  org: { version: 1, name: 'org', models: { allow: ['team-*'] }, mcp: { allow: ['docs'] }, tools: { deny: ['mcp__docs__delete_all'] }, git: { repos: ['acme/app'], protect: ['refs/heads/main'] }, approvers: { roles: ['lead'], separate: true } },
+  org: { version: 1, name: 'org', models: { allow: ['team-*'] }, mcp: { allow: ['docs'] }, tools: { deny: ['mcp__docs__delete_all'] }, git: { repos: ['acme/app'], protect: ['refs/heads/main'] }, approvers: { roles: ['lead'], separate: true }, audit: { readers: { roles: ['auditor'] } } },
 });
 
 interface Setup {
@@ -177,6 +177,17 @@ describe('approvals on the broker', () => {
       assert.match(String((await callTool(team, token, 'git_push', { repo: 'acme/app', branch: 'main', bundle: second.bundle })).body['text']), /needs an approval/, 'another commit needs its own approval');
       assert.ok(team.audit.some((row) => row.type === 'broker/approval-decided' && row.data['approver'] === 'cy@example.com' && row.data['requester'] === 'ana@example.com'));
       assert.ok(team.audit.some((row) => row.type === 'broker/approval-refused' && row.data['approver'] === 'ana@example.com'));
+
+      // The team's auditor sees that same story as one line, from the chain: who asked, who refused, who decided, and that it was used.
+      const dee = await team.login({ email: 'dee@example.com', department: 'eng', groups: ['auditor'] });
+      await team.broker.audit.settle();
+      const seen = (await (await team.raw('/v1/audit/approvals', { token: dee.loginToken, session: dee.sid })).json()) as { approvals: { id: string; requester: string; state: string; decidedBy: string; refused: { approver: string }[]; action: string }[] };
+      const line = seen.approvals.find((item) => item.id === id);
+      assert.equal(line?.requester, 'ana@example.com');
+      assert.equal(line?.state, 'used');
+      assert.equal(line?.decidedBy, 'cy@example.com');
+      assert.deepEqual(line?.refused.map((item) => item.approver).sort(), ['ana@example.com', 'bo@example.com']);
+      assert.match(line?.action ?? '', new RegExp(first.sha));
     }, { email: 'ana@example.com', department: 'eng', groups: ['lead'] });
   });
 });

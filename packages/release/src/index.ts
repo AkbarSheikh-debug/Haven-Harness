@@ -5,3 +5,4 @@ export * from './supply.ts';
 export * from './sandbox.ts';
 export * from './fetch.ts';
 export * from './tree.ts';
+export * from './trust-files.ts';

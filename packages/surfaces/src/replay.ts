@@ -1,8 +1,5 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
-import { projectKey, resolvePaths } from '@hn/config';
 import { revealHidden, type SessionEvent } from '@hn/core';
-import { parseLog, type LoadedLog } from '@hn/session';
+import type { LoadedLog } from '@hn/session';
 
 /**
  * The replay and audit view of a session: its tamper-evident log, turned into steps a person can walk through. Each step
@@ -22,6 +19,8 @@ export const MAX_STEPS = 10_000;
 export const MAX_DETAIL = 1_500;
 export const MAX_DIFF_SIDE = 3_000;
 export const MAX_LOG_FILE_BYTES = 256 * 1024 * 1024;
+/** A log is re-verified from its start each time it grows, so only logs up to this size are followed live. */
+export const MAX_FOLLOW_BYTES = 32 * 1024 * 1024;
 export const MAX_LISTED_SESSIONS = 500;
 export const SESSION_ID = /^[A-Za-z0-9-]{1,64}$/;
 
@@ -93,7 +92,7 @@ export interface Replay {
   readonly totals: ReplayTotals;
 }
 
-const NO_TOTALS: ReplayTotals = { turns: 0, calls: 0, refused: 0, approvalsAsked: 0, approvalsDenied: 0, files: [], untrustedAt: null };
+export const NO_TOTALS: ReplayTotals = { turns: 0, calls: 0, refused: 0, approvalsAsked: 0, approvalsDenied: 0, files: [], untrustedAt: null };
 const REFUSED_TEXT = 'The log of this session failed its integrity check: its HMAC chain does not verify, so it may have been edited, reordered, cut or forged. Nothing in it is shown.';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -302,63 +301,4 @@ export function buildReplay(log: LoadedLog, sessionId: string): Replay {
     hidden,
     totals: { turns, calls: state.calls, refused: state.refused, approvalsAsked: state.approvalsAsked, approvalsDenied: state.approvalsDenied, files, untrustedAt },
   };
-}
-
-export interface SessionListing {
-  readonly id: string;
-  readonly modified: string;
-  readonly bytes: number;
-}
-
-export type ReplayLoad = { readonly kind: 'replay'; readonly replay: Replay } | { readonly kind: 'missing' } | { readonly kind: 'too-large'; readonly bytes: number };
-
-/** The sessions recorded for the project in `workdir`, newest first. Names only: a log is verified when it is opened. */
-export async function listSessions(workdir: string, env?: NodeJS.ProcessEnv): Promise<SessionListing[]> {
-  const folder = join(resolvePaths(env).sessions, projectKey(workdir));
-  let names: string[];
-  try {
-    names = await readdir(folder);
-  } catch {
-    return [];
-  }
-  const found: SessionListing[] = [];
-  for (const name of names) {
-    if (!SESSION_ID.test(name)) continue;
-    try {
-      const info = await stat(join(folder, name));
-      if (info.isFile()) found.push({ id: name, modified: info.mtime.toISOString(), bytes: info.size });
-    } catch {
-      // A file that vanished between the listing and the stat is not a session any more.
-    }
-  }
-  return found.sort((a, b) => b.modified.localeCompare(a.modified) || a.id.localeCompare(b.id)).slice(0, MAX_LISTED_SESSIONS);
-}
-
-/**
- * Opens one session's log and verifies it. The id must match the session-id pattern and is only ever joined to the
- * project's own sessions folder, so it cannot name another path. A missing key or log is `missing`, not a replay.
- */
-export async function loadReplay(sessionId: string, workdir: string, env?: NodeJS.ProcessEnv): Promise<ReplayLoad> {
-  if (!SESSION_ID.test(sessionId)) return { kind: 'missing' };
-  const paths = resolvePaths(env);
-  const path = join(paths.sessions, projectKey(workdir), sessionId);
-  let bytes: Buffer;
-  let key: Buffer;
-  try {
-    const info = await stat(path);
-    if (!info.isFile()) return { kind: 'missing' };
-    if (info.size > MAX_LOG_FILE_BYTES) return { kind: 'too-large', bytes: info.size };
-    bytes = await readFile(path);
-    key = await readFile(paths.logKey);
-  } catch {
-    return { kind: 'missing' };
-  }
-  let log: LoadedLog;
-  try {
-    log = parseLog(bytes, key);
-  } catch {
-    // Only a log written by a newer hn throws. It cannot be read here, which is a refusal, not a guess.
-    return { kind: 'replay', replay: { sessionId, trust: 'refused', reason: 'This log was written by a newer hn than this one, so it cannot be verified here.', createdAt: null, events: 0, steps: [], shownSteps: 0, truncated: false, crashed: false, hidden: {}, totals: NO_TOTALS } };
-  }
-  return { kind: 'replay', replay: buildReplay(log, sessionId) };
 }

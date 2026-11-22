@@ -32,6 +32,7 @@ export const AREAS = [
   'Team broker',
   'Editor extension',
   'GitHub Action',
+  'Signing keys, rotation and revocation',
 ] as const;
 
 export type Area = (typeof AREAS)[number];
@@ -50,6 +51,7 @@ const SURFACE: Area = 'The terminal and the local web page';
 const BROKER: Area = 'Team broker';
 const EDITOR: Area = 'Editor extension';
 const ACTION: Area = 'GitHub Action';
+const KEYS: Area = 'Signing keys, rotation and revocation';
 
 export const ATTACKS: readonly Attack[] = [
   // The permission gate and approvals.
@@ -160,6 +162,37 @@ export const ATTACKS: readonly Attack[] = [
   attack(BROKER, 'memory_from_other_ou_never_returned', 'Team memory from another group is never returned, and nobody writes into a group they are not in.'),
   attack(BROKER, 'cut_audit_tail_caught_by_anchor', 'Cutting the end off the broker\'s audit chain is caught, because the anchor cannot go back and every refusal is in the chain.'),
 
+  // Team audit (Phase 14).
+  attack(BROKER, 'audit_read_by_non_reader', 'Someone whose policy does not name them as an audit reader gets nothing from any audit route, and the attempt is itself recorded.'),
+  attack(BROKER, 'audit_read_by_session_token', 'The token a model-driven session holds cannot read the team audit; only a person login can.'),
+  attack(BROKER, 'audit_reader_access_ends_with_policy', 'A person who stops being named as a reader in the signed policy is refused on their next request.'),
+  attack(BROKER, 'audit_filter_injection', 'A search filter that is a pattern, an escape, a null byte, a repeated or unknown parameter, or enormous is refused or only ever compared, never interpreted.'),
+  attack(BROKER, 'audit_export_row_edited', 'A row edited inside an audit export is found by the offline check, which names the row.'),
+  attack(BROKER, 'audit_export_rows_removed_or_reordered', 'A row removed from, moved within or repeated in an audit export is found, even when the export header is changed to match.'),
+  attack(BROKER, 'audit_export_tail_cut', 'Cutting the end off an audit export is found, whether the broker signed word about the old end is left in or taken out.'),
+  attack(BROKER, 'audit_export_tail_extended_by_key_holder', 'Someone who holds the audit key and adds or rewrites rows still cannot make an export verify, because the new head was never signed by the broker.'),
+  attack(BROKER, 'audit_export_row_swapped_by_key_holder', 'One row swapped for a genuine-looking one by someone who holds the audit key is found, because the rows after it no longer follow it.'),
+  attack(BROKER, 'audit_checkpoint_forged', 'A checkpoint signed with another key, or edited to cover a different row, is refused, and so is a valid export checked with the wrong public key.'),
+  attack(BROKER, 'audit_export_view_as_export', 'A filtered selection of rows is never reported as verified, and relabelling it as an export fails because rows are missing.'),
+  attack(BROKER, 'audit_history_rewritten_after_pin', 'An export that ends before, or disagrees with, a checkpoint the auditor pinned on an earlier visit is refused.'),
+  attack(BROKER, 'audit_pinned_key_replaced', 'If the broker audit-signing key is not the one the auditor was given or pinned, nothing more is pinned and the auditor is told.'),
+  attack(BROKER, 'audit_checkpoint_file_edited', 'A checkpoint file edited by hand, or a chain cut under its checkpoints, stops the broker at start instead of being repaired.'),
+  attack(BROKER, 'audit_tail_gap_or_repeat', 'A follower of the live audit, resuming from a row number, gets every later row exactly once and in order.'),
+  attack(BROKER, 'audit_tail_outlives_login', 'A live audit stream ends when the login of the person following it has expired.'),
+  attack(BROKER, 'audit_tail_follower_cap', 'At most eight people can follow the live audit at once, and a slot is given back when a follower leaves.'),
+  attack(BROKER, 'audit_tail_slow_reader_dropped', 'A follower that stops reading is dropped, not buffered without limit, and the broker keeps writing.'),
+
+  // Session log, memory and instructions (Phase 14).
+  attack(LOG, 'laptop_audit_cut_tail_found_against_anchor', 'A session audit file with its end cut, rewritten, or made with another key is found by comparing it with the head the broker anchored for that session.'),
+  attack(LOG, 'followed_log_forged', 'A forged record appended to a session log while the replay screen is following it turns the screen to refused, and none of the forged content is sent or shown.'),
+  attack(LOG, 'followed_log_shortened_or_rewritten', 'A followed log that gets shorter, or whose already shown part changes while it still verifies, is refused.'),
+
+  // The terminal and the local web page (Phase 14).
+  attack(SURFACE, 'audit_screen_requires_login_host_and_origin', 'The auditor screen shows nothing without the login cookie, takes no token in the address, and refuses a foreign Host or Origin.'),
+  attack(SURFACE, 'audit_screen_is_read_only', 'The auditor screen answers only GET and changes nothing on the broker or the machine.'),
+  attack(SURFACE, 'audit_row_hidden_characters_written_out', 'A broker row with a right-to-left override, a zero-width space or a terminal escape reaches the auditor screen with each written out as visible text.'),
+  attack(SURFACE, 'audit_row_html_injection', 'An approval whose action text looks like HTML or script is shown on the auditor screen as the characters it is: no element made, no script run, nothing fetched.'),
+
   // Editor extension.
   attack(EDITOR, 'editor_diff_shows_exact_bytes_written', 'The diff an editor shows for an approval matches the bytes that are written.'),
   attack(EDITOR, 'editor_diff_reveals_hidden_characters', 'Hidden characters in a change are shown to the person instead of being stripped from view.'),
@@ -183,6 +216,19 @@ export const ATTACKS: readonly Attack[] = [
   attack(ACTION, 'patch_to_protected_path_pushes_nothing', 'A patch that touches a protected path pushes nothing, and the issue is told exactly what and why.'),
   attack(ACTION, 'agent_job_holds_no_write_token', 'Only the publish job holds a write token; the job that runs the model has none.'),
   attack(ACTION, 'workflow_never_pastes_issue_text_into_a_command', 'The workflow never pastes issue or user text into a command, and every action it uses is pinned to a commit.'),
+  attack(KEYS, 'roster_signed_by_signing_key', 'A key roster signed by a signing key, even a trusted one, is refused: only the offline root may change which keys are trusted, so a leaked signing key cannot add its own key or revoke the good ones.'),
+  attack(KEYS, 'roster_forged_or_edited', 'A key roster that claims the name of the root but is signed by someone else, or whose keys were edited after signing, is refused.'),
+  attack(KEYS, 'roster_replayed_older', 'An older key roster, or a different one with the same serial, is refused, so an old roster cannot be put back to bring a key back.'),
+  attack(KEYS, 'roster_wrong_purpose', 'A roster made for one purpose (policy, release or audit) is refused where another is asked for.'),
+  attack(KEYS, 'roster_unrevokes_key', 'A revoked key can never be trusted again, by its id or by its public key under a new id, and a later roster that simply leaves it out keeps it revoked.'),
+  attack(KEYS, 'trust_record_edited', 'Editing, truncating or moving the record of which keys a machine trusts stops everything instead of falling back to the keys the package shipped, which would forget a revocation.'),
+  attack(KEYS, 'revoked_release_key_refused', 'After a root-signed revocation, an update archive, an installed copy and a sandbox helper manifest signed by the revoked release key are all refused, and hn doctor says what to do.'),
+  attack(KEYS, 'revoked_policy_key_refused', 'A leaked policy key that signs a looser policy with a higher serial is followed before the revocation and refused by both the broker and the laptop after it.'),
+  attack(KEYS, 'policy_roster_other_root_refused', 'A laptop refuses a key roster the broker serves that is older, signed by a signing key, or signed by a root it did not pin at login.'),
+  attack(KEYS, 'policy_root_not_taken_from_known_broker', 'A broker the laptop is already logged in to cannot hand it a new root key later: the root is taken only at the first login.'),
+  attack(KEYS, 'audit_checkpoint_after_retirement', 'A retired audit-signing key signing a checkpoint for a row after its retirement is refused by the offline check, and so is a new key signing for rows before it began.'),
+  attack(KEYS, 'audit_checkpoint_revoked_key_after_row', 'Someone with a leaked audit key who extends the chain and signs the new head with it cannot make an export verify once the key is revoked after a row; its older checkpoints still count as history.'),
+  attack(KEYS, 'audit_roster_stale_in_bundle', 'An older roster placed inside an export, from before a revocation, does not bring the revoked audit key back: an auditor keeps the newest roster they have seen.'),
 ];
 
 export const attackNames = (): readonly string[] => ATTACKS.map((entry) => entry.name);

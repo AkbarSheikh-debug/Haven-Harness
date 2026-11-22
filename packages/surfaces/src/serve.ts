@@ -38,6 +38,8 @@ export interface ReplayServeOptions {
   readonly cwd: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly port?: number;
+  /** Open with "Follow live" on and the newest session chosen. */
+  readonly follow?: boolean;
 }
 
 const APPROVAL_TIMEOUT_MS = 10 * 60_000;
@@ -167,7 +169,7 @@ export async function startReplayServe(options: ReplayServeOptions): Promise<Ser
       return guard.reply(res, 401, 'text/plain; charset=utf-8', 'Log in first.');
     }
     if (req.method === 'GET' && path === '/') return guard.reply(res, 303, 'text/plain', '', { location: '/replay' });
-    if (isReplayPath(path)) return handleReplay({ cwd: options.cwd, ...(options.env === undefined ? {} : { env: options.env }), guard }, req, res, path);
+    if (isReplayPath(path)) return handleReplay({ cwd: options.cwd, ...(options.env === undefined ? {} : { env: options.env }), ...(options.follow === true ? { follow: true } : {}), guard }, req, res, path);
     return guard.reply(res, req.method === 'GET' ? 404 : 405, 'text/plain; charset=utf-8', req.method === 'GET' ? 'Not found.' : 'This server only shows recorded sessions; it cannot be asked to do anything.');
   };
   const server = await listenLoopback(handle, guard, options.port ?? 0);

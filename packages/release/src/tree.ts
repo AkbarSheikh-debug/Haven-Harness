@@ -22,7 +22,13 @@ export interface TreeCheck {
 
 export const SIGNATURE_PATH = 'manifest.sig.json';
 
-export async function verifyInstalledTree(root: string): Promise<TreeCheck> {
+/** Keys as this machine trusts them now, when a root-signed roster may have changed the package's own pins (Phase 15). */
+export interface TreeTrust {
+  readonly keys: ReadonlyMap<string, string>;
+  readonly revoked: ReadonlySet<string>;
+}
+
+export async function verifyInstalledTree(root: string, trust?: TreeTrust): Promise<TreeCheck> {
   const fail = (problem: string, version = 'unknown'): TreeCheck => ({ ok: false, version, checked: 0, problems: [problem] });
   let bytes: Buffer;
   let signature: ReleaseSignature;
@@ -38,7 +44,8 @@ export async function verifyInstalledTree(root: string): Promise<TreeCheck> {
   } catch {
     return fail('the manifest is not JSON');
   }
-  const pem = typeof signature?.keyId === 'string' ? keys[signature.keyId] : undefined;
+  if (trust !== undefined && typeof signature?.keyId === 'string' && trust.revoked.has(signature.keyId)) return fail(`the manifest is signed with the key "${signature.keyId}", which has been revoked. Install a release signed by a current key (hn update), then run: hn trust show`, String(manifest.version));
+  const pem = typeof signature?.keyId === 'string' ? (trust === undefined ? keys[signature.keyId] : trust.keys.get(signature.keyId)) : undefined;
   if (pem === undefined || typeof signature.signature !== 'string') return fail('the manifest is signed with a key this copy does not pin', String(manifest.version));
   if (!bytes.equals(manifestBytes(manifest))) return fail('the manifest is not in its signed form', String(manifest.version));
   let good = false;

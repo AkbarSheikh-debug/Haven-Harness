@@ -1,5 +1,6 @@
 export * from './approval.ts';
 export * from './audit.ts';
+export * from './audit-bundle.ts';
 export * from './bash-policy.ts';
 export * from './bash.ts';
 export * from './egress.ts';
@@ -15,3 +16,5 @@ export * from './rules.ts';
 export * from './syntax.ts';
 export * from './oidc.ts';
 export * from './policy-tree.ts';
+export * from './key-roster.ts';
+export * from './trust-record.ts';

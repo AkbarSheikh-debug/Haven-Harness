@@ -40,6 +40,12 @@ An update is installed only when **all** of these hold:
 Updates are only ever started by a person typing `hn update`. It is refused inside an hn session, and nothing in a
 project's files can name an update source.
 
+## Replacing or revoking the release key
+
+A release can pin an offline **root key** that signs rosters of trusted release keys, so a leaked or retired signing key can be replaced
+or revoked without trusting the old key to say so, and a revocation can reach a machine (`hn trust update`) without a new release.
+See [replacing and revoking signing keys](key-rotation.md). A release built without a root behaves exactly as before.
+
 ## Building a release (maintainers)
 
 ```bash
