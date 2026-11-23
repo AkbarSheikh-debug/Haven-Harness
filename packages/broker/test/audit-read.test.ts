@@ -306,7 +306,12 @@ describe('exporting the broker audit', () => {
     await withAudit(async ({ team, ask }) => {
       const listed = await json<{ keyId: string; publicKey: string; checkpoints: Checkpoint[] }>(await ask('/v1/audit/checkpoints'));
       assert.equal(listed.publicKey, team.broker.audit.checkpoints.publicPem);
-      assert.equal(listed.checkpoints[listed.checkpoints.length - 1]?.n, team.broker.audit.store.head.n - 1 + 1);
+      // The broker signs the head, then records this read as one more row; wait for that row, so the head is not a race.
+      await team.broker.audit.settle();
+      const head = team.broker.audit.store.head.n;
+      const [last] = await team.broker.audit.store.read(head, head);
+      assert.equal(last?.type, 'broker/audit-read');
+      assert.equal(listed.checkpoints[listed.checkpoints.length - 1]?.n, team.broker.audit.store.head.n - 1);
       assert.equal(listed.checkpoints[0]?.keyId, listed.keyId);
     });
   });
